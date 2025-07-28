@@ -8,7 +8,7 @@ using namespace std;
 */
 
 ///// 상수 저장
-const int Testcase = 500;
+const int Testcase = 200;
 map<int, vector<int>> graphData; //input graph data : <a,b> = a와b를 이음 
 /////
 
@@ -33,12 +33,19 @@ public:
 		2. 그룹의 크기? 도 중요할라나 
 	*/
 	int evaluation() {
-		//절단선이 없을 경우
-//		if (this->cutl.empty())
-//			return (-1);
-
-		//(TODO) 그룹 크기 동일하게 하는 것도 평가함수에 적용되도록 
-		return (this->cutl.size());
+		//1. 절단선의 크기가 클 수록 높은 점수 
+		int p1 = this->cutl.size();
+		//2. 그룹의 크기가 동일할수록 높은 점수 100 - 차이
+		//	절단선 크기가 같을 때 크기를 동일하게 맞추는 것이므로 점수 배분을 작게함
+		int dif = 0; //0이면 --, 1이면 ++
+		for(int i=1; i<pg.size(); i++)
+			pg[i]=='0' ? dif-- : dif++;
+		int p2 = max(0, 10 - abs(dif));
+		
+		//cout << pg << ": " << p1 << ", " << p2 << "\n"; //debug
+		
+		int totalScore = p1 + p2;
+		return (totalScore);
 	}
 	
 	/* 자신과 이웃하는 해 생성
@@ -57,7 +64,6 @@ public:
 				기존 cutl 중 a와 연결된 간선을 다 지우고 
 				cutl에 없는 graphData 중 a와 연결된 간선을 다 추가하면 됨. 
 			*/
-			cout << pg << endl; //debug
 			set<pair<int, int>> tmpcutl = cutl;
 			for(int j=0; j<graphData[i].size(); j++) {
 				int a = i;
@@ -65,10 +71,8 @@ public:
 				if (a > b) //무조건 a<=b 이도록
 					swap(a, b); 
 				pair<int, int> l = make_pair(a,b); //간선 l
-				if (tmpcutl.count(l)) { //cutl에 존재하므로 지우기
-					cout << l.first << "," << l.second << endl; //debug
+				if (tmpcutl.count(l)) //cutl에 존재하므로 지우기
 					tmpcutl.erase(l);
-				}
 				else //cutl에 새로 추가 
 					tmpcutl.insert(l);
 			}
@@ -103,7 +107,8 @@ public:
 	}
 	
 	void outputEval(ofstream& os) {
-		os << "점수: " << this->evaluation() << "\n";
+		//os << "점수: " << this->evaluation() << "\n";
+		os << "절단선 크기: " << this->cutl.size() << "\n";
 	}
 };
 vector<Solution> TabuList;
@@ -129,7 +134,7 @@ void TabuSearch_main(ofstream& os) {
 	endit--;
 	int maxn = endit->first; //정점의 최대 
 	
-	// 임의의 first solution 생성
+	// 1. Generate first solution
 	Solution currentSolution;
 	// 가장 처음 나오는 정점 중에 1개 이상 연결되어있는 정점으로 ㄱㄱ 
 	int a = 0;
@@ -152,18 +157,18 @@ void TabuSearch_main(ofstream& os) {
 	for(int i=0; i<graphData[a].size(); i++)
 		currentSolution.cutl.insert(make_pair(a, graphData[a][i]));
 	
-	
+	//2. (Start) TabuSearch generate neighborSolution Start
 	int t = 1;
-	while (t <= maxn) { //t <= Testcase
+	while (t <= Testcase) { //t <= Testcase
 		cout << t << "번째 실행\n"; //debug
 		
 		os << t << "번째 실행: ";
 		currentSolution.outputEval(os); //debug
 		
-		//1. neighbor solution 생성
+		//2-1. neighbor solution 생성
 		vector<Solution> neighborSolution = currentSolution.generate_neighborSolution();
-		//2. neighbor solution 중에서 Tabu에 있는거 제외 후
-		// 가장 좋은거 다음 current Solution으로 고르기 
+		//2-2. neighbor solution 중에서 Tabu에 있는거 제외 후
+		// 	가장 좋은거 다음 current Solution으로 고르기 
 		for(int i=0; i<neighborSolution.size(); i++) {
 			if (!isInTabuList(neighborSolution[i])) {
 				if (currentSolution.evaluation() < neighborSolution[i].evaluation())
@@ -171,10 +176,10 @@ void TabuSearch_main(ofstream& os) {
 				//여기서 TabuList에 추가해도 될듯 
 			}
 		}
-		//4. Tabulist에 추가
+		//2-3. Tabulist에 추가
 		TabuList.push_back(currentSolution);
-		//5. maxcut update
-		if (maxcut.cutl.size() < currentSolution.cutl.size())
+		//2-4. maxcut update
+		if (maxcut.evaluation() < currentSolution.evaluation())
 			maxcut = currentSolution;
 		t++;
 	}
@@ -184,6 +189,25 @@ vector<string> fileList = {
 	"testcase1.txt",
 //	"G500.2.5",
 //	"G500.10",
+//	"G500.20",
+//	"G1000.2.5",
+//	"G1000.05",
+//	"G1000.10",
+//	"G1000.20",
+//	"pcart.352",
+//	"pcart.702",
+//	"pcart.1052",
+//	"pcgrid100.20",
+//	"pcgrid500.42",
+//	"prcart.134",
+//	"prcart.554",
+//	"U500.05",
+//	"U500.10",
+//	"U1000.05",
+//	"U1000.10",
+//	"pgrid100.10",
+//	"pgrid500.21",
+//	"pgrid1000.20",
 };
 
 int main() {
