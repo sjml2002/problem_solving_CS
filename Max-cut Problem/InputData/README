@@ -1,0 +1,105 @@
+
+This directory contains all of the graphs that are used in the paper
+``Genetic Algorithm for a Special Class of the Quadratic Assignment
+Problem,'' by T. N. Bui and B. R. Moon, DIMACS Workshop on QAP and
+Related Problems, 1993.
+
+These graphs include all of the graphs used in D.S. Johnnson, C.R.
+Aragon, L.A. McGeoch, C.A. Schevon's paper "Optimization by Simulated
+Annealing: An Experimental Evaluation, Part 1, Graph Partitioning,"
+OPEARATIONS RESEARCH 37 (1989), 865-892.
+
+There are 5 classes of graphs in all.  The $Gn.p$ and the $Un.d$
+graphs are courtesy of David S. Johnson.
+
+
+1. $Gn.p$: a random graph on $n$ vertices with edge probability $p$.
+           E.g., G1000.01 is a 1000-vertex graph with p=.01.
+
+The graphs in this model are generated as follows.  Start with $n$
+vertices.  Put an edge between any two vertices with probability $p$,
+independent of all other edges.  The expected vertex degree is thus
+$(n-1)p$.
+
+
+2. $Un.d$: a geometric random graph on $n$ vertices and expected degree $d$.
+           E.g., U500.10 is a 500-vertex geometric graph with
+           "expected degree" 10. 
+
+
+Graphs in this model are generated as follows.  Pick $2n$ independent
+numbers uniformly in the interval (0,1), and view these as the
+coordinates of $n$ points in the unit square.  These points represent
+vertices.  Put an edge between any two vertices iff their Euclidean
+distance is $t$ or less.  Note that for points not too close to the
+boundary, the expected degree will be approximately $nt^2\pi$.
+
+
+3. cat.$n$ : a caterpillar graph on $n$ vertices with each node on the
+             spine having degree 8.
+
+E.g., a caterpillar graph in which each node on the spine has degree 6
+(or 6 legs).
+
+  \|/  \|/         \|/  \|/  \|/
+   *----*--- ....---*----*----*
+  /|\  /|\         /|\  /|\  /|\
+
+
+
+rcat.$n$ : a caterpillar graph on $n$ vertices with each node on
+           the spine having degree $\sqrt{n}$.
+
+
+4. grid.$n.b$ : a grid graph on $n$ vertices whose optimal bisection
+                size is $b$.
+
+   w-grid.$n.b$ : same as grid.$n.b$ but the grid has wrapped around
+                  edges.
+
+
+5. breg$n.b$ : a regular random graph on $n$ vertices in which each
+               vertex has degree 3 and the optimal bisection size is
+               $b$ with high probability, i.e., probability approaches
+               1 as $n$ approaches infinity.
+
+E.g., breg5000.8 is a cubic random graph on 5000 vertices and whose
+optimal bisection size is 8 with probability $1-o(1)$.
+
+Please see the following reference for details on how this class of
+graphs is generated.
+
+Bui, T. N., S. Chaudhuri, F. T. Leighton, and M. Sipser,
+``Graph Bisection Algorithms with Good Average Case Behavior,''
+Combinatorica, Vol. 7, No. 2, 1987, pp. 171--191.
+
+
+
+===========================================================================
+The format for the test graphs is as follows:
+
+Vertex Name  (Coordinates)	Degree    Names of adjacent vertices
+
+(For the $Un.d$ graphs the coordinates are the actual coordinates of
+the vertex, and the coordinates are 0.000000,0.000000 for all other
+graphs. )
+
+If you just want graphs to test then ignore the (coordinates) section
+in C code this is %*s for this part or use an editor to remove them 
+from your copy of the file.
+
+
+See Johnson et al's paper and Bui and Moon's paper for the best known
+solutions to these test problems. 
+
+===========================================================================
+
+Thang N. Bui
+5/25/93
+
+
+============================================================
+input data는 
+<그래프정점 / (x좌표, y좌표) / 연결된정점수 / 연결된정점들의List>
+로 이루어져있다.
+ 
