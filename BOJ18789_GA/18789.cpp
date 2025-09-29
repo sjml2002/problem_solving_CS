@@ -3,6 +3,7 @@
 #include <vector>
 #include <algorithm>
 #include <random>
+#include <chrono>
 # define R 8
 # define C 14
 using namespace std;
@@ -11,7 +12,9 @@ using namespace std;
  * 랜덤 값 생성
  */
 static random_device rd;   // 시드값 생성(한 번만)
-static mt19937 gen(rd());  // 메르센 트위스터 엔진 초기화(한 번만)
+static mt19937 gen(
+    chrono::steady_clock::now().time_since_epoch().count()
+); // 매번 시드값 달라짐
 //0 ~ end 사이 범위 정수 랜덤값 생성 함수
 int genRandom(int end) { 
 	uniform_int_distribution<> dis(0, end);
@@ -30,6 +33,17 @@ public:
 	Solution(string tmp[]) {
 		for(int i=0; i<R; i++)
 			gene[i] = tmp[i];
+	}
+	
+	void initSol() {
+		for(int i=0; i<R; i++) {
+			string tmp; 
+			for(int j=0; j<C; j++) {
+				int rv = genRandom(9);
+				tmp += ((char)rv+48);
+			}
+			gene[i] = tmp;
+		}
 	}
 	
 	/**
@@ -57,11 +71,11 @@ public:
 				break ;
 			score++;
 		}
-		return (score);
+		return (score-1);
 	}
 	
 	int Fitness_BFS(string& scorestr, int i, int j, int idx) {
-		if (idx >= scorestr.size())
+		if (idx == scorestr.size())
 			return (1);
 		
 		int flag = 0;
@@ -86,9 +100,10 @@ public:
 	}
 	
 	void output() {
-		cout << "점수: " << Fitness() << "\n";
+		cout << "Fitness: " << Fitness() << "\n";
 		for(int i=0; i<R; i++)
 			cout << gene[i] << "\n";
+		cout << "\n";
 	}
 }; 
 
@@ -132,15 +147,16 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 		for(int i=0; i<R; i++) {
 			string tmpc;
 			for(int j=0; j<C; j++) {
-				double rv = genRandom(parent->size()); //랜덤값 생성
-				cout << "rv: " << rv << endl; //debug
+				int rv = genRandom(parent->size()-1); //랜덤값 생성
 				tmpc += (*parent)[rv].gene[i][j];
 			}
 			tmpr[i] = tmpc;
 
 			//돌연변이?
 		}
+		cout << endl; //debug
 		Solution news = Solution(tmpr);
+		news.output(); //debug
 		dest->push_back(news);
 		gi++;
 	}
@@ -154,9 +170,16 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 int GeneticAlgorithm(int generation, int genes) {
 	// 1. genes 만큼 초기해 생성
 	vector<Solution> cursv;
+	for(int i=0; i<genes; i++) {
+		Solution tmp;
+		tmp.initSol();
+		cursv.push_back(tmp);
+		tmp.output(); //debug
+	}
 
 	int gi = 0;
 	while (gi < generation) {
+		cout << "GEN" << gi << endl; //debug
 		// 2. 우수한 개체를 다음 세대의 부모로 선택
 		vector<Solution> parent = selectExcellentParent(&cursv);
 		// 3. Cross over : 두 부모로 새로운 자식 염색체 생성
@@ -167,27 +190,24 @@ int GeneticAlgorithm(int generation, int genes) {
 	}
 
 	// 마무리 : 가장 높은 상위 10개를 출력.
+	
+	cout << "RESULT" << endl; //debug
+	for(int i=0; i<genes; i++)
+		cursv[i].output();
+	
 	return (0);
 } 
 
 int main() {
 
-	int generation = 100; //100 세대 진행
-	int genes = 100; //100개의 유전자들
+	int generation = 10; //100 세대 진행
+	int genes = 10; //100개의 유전자들
 	
-	string tmp[R] = {
-		"10203344536473",
-		"01020102010201",
-		"00000000008390",
-		"00000000000400",
-		"00000000000000",
-		"55600000000089",
-		"78900066000089",
-		"00000789000077"
-	};
-	
-	Solution tmpsol = Solution(tmp);
-	tmpsol.output();
+//	string tmp[R];
+//	for(int i=0; i<R; i++)
+//		cin >> tmp[i];
+//	Solution tmpsol = Solution(tmp);
+//	tmpsol.output();
 	
 	int res = GeneticAlgorithm(generation, genes); 
 	
