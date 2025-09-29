@@ -126,7 +126,7 @@ int cmp(Solution& s1, Solution& s2) {
 vector<Solution> selectExcellentParent(vector<Solution>* cursv) {
 	sort(cursv->begin(), cursv->end(), cmp);
 	
-	int psize = 50;
+	int psize = 1;
 	vector<Solution> nextParent;
 	for(int i=0; i<psize; i++) {
 		nextParent.push_back((*cursv)[i]);
@@ -141,8 +141,10 @@ vector<Solution> selectExcellentParent(vector<Solution>* cursv) {
 
 	1. 현재 숫자는 주변 8개의 숫자랑 다를 수록 확률이 높아짐.
 		0~9까지 숫자에서 상한선을 정해서 랜덤값 생성한 다음에 가장 높은거 선택 ㄱㄱ 
-	1-1. 단 자신과 같다면 상한선 조금 높게 설정
-	
+	1-1. 단 자신과 같다면 상한선 조금 높게 
+		=> Failed. 200 이상 넘지가 않는다.
+
+	2. 현재 최상의 부모에서 하나만 선택해서 변경
 */
 int selectNum(string s[], int i, int j) {
 	int maxv = 0;
@@ -171,7 +173,7 @@ int selectNum(string s[], int i, int j) {
 		if (flag == 1 && numstr == s[i][j])
 			rv = genRandom(800); //상한선 900
 		else if (flag == 1)
-			rv = genRandom(500); //상한선 800
+			rv = genRandom(600); //상한선 800
 		else
 			rv = genRandom(1000); //상한선 1000
 		
@@ -183,23 +185,28 @@ int selectNum(string s[], int i, int j) {
 	return (maxnum);
 }
 void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) {
+	string original[R];
+	for (int k = 0; k < R; k++)
+		original[k] = (*parent)[0].gene[k];
+	
 	int gi = 0;
-	while(gi < genes) {
+	int num = 0;
+	while (num < 10) {
+	//while(gi < genes) {
 		//1. Uniform CrossOver
-		string tmpr[R];
 		for(int i=0; i<R; i++) {
-			string tmpc;
 			for(int j=0; j<C; j++) {
-				int num = selectNum((*parent)[0].gene, i, j);
-				tmpc += to_string(num);
-			}
-			tmpr[i] = tmpc;
+				char oc = original[i][j];
+				//int num = selectNum((*parent)[0].gene, i, j);
+				original[i][j] = (char)(num+48);
+				dest->push_back(Solution(original));
 
+				original[i][j] = oc; //다시 원래대로
+			}
 			//돌연변이?
 		}
-		Solution news = Solution(tmpr);
-		dest->push_back(news);
-		gi++;
+		//gi++;
+		num++;
 	}
 }
 
@@ -247,7 +254,7 @@ int GeneticAlgorithm(int generation, int genes) {
 } 
 
 int main() {
-	int generation = 100; // generation LOOP
+	int generation = 10; // generation LOOP
 	int genes = 100; //number of genes
 
 	// //임시 검증
