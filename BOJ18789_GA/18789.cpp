@@ -1,24 +1,36 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <random>
 # define R 8
 # define C 14
 using namespace std;
 
+/**
+ * 랜덤 값 생성
+ */
+static random_device rd;   // 시드값 생성(한 번만)
+static mt19937 gen(rd());  // 메르센 트위스터 엔진 초기화(한 번만)
+//0 ~ end 사이 범위 정수 랜덤값 생성 함수
+int genRandom(int end) { 
+	uniform_int_distribution<> dis(0, end);
+	return (dis(gen));
+}
+////////////////
+
 /*
 	유전 알고리즘으로 풀어보자. 
-
-
 */
-
 class Solution {
 public:
 	string gene[R]; //실제 해 
 	
+	Solution() {}
 	Solution(string tmp[]) {
 		for(int i=0; i<R; i++)
 			gene[i] = tmp[i];
-	} 
+	}
 	
 	/**
 		- 적합도 평가 (점수 채점) 
@@ -82,44 +94,84 @@ public:
 
 
 /**
-	- 우수한 부모를 선택
-	
-*/ 
-vector<Solution> selectExcellentParent() {
-	
-}
-
-
-/**
-	- 부모로 자식 생성 (돌연변이 포함) 
+	- 우수한 개체를 다음 세대의 부모를 선택
+	=> 일단 부모는 2개로
 */
-vector<Solution> generateChild(vector<Solution>* parent) {
+int cmp(Solution& s1, Solution& s2) {
+	return (s1.Fitness() > s2.Fitness());
+}
+vector<Solution> selectExcellentParent(vector<Solution>* cursv) {
+	sort(cursv->begin(), cursv->end(), cmp);
 	
-	
-	
-	
-	//자식에서 돌연변이 
+	int psize = 2;
+	vector<Solution> nextParent;
+	for(int i=0; i<psize; i++) {
+		nextParent.push_back((*cursv)[i]);
+	}
+	return (nextParent);
 }
 
 /**
-	@param{generation} : 세대 수 (Loop 수)
-	@param{genes} : 1세대 당 유전자의 수 
-	@return : 최고 점수 
+	- 부모로 자식 생성 (돌연변이 포함)
+	생성한 자식은 dest에 할당하기
+
+	1. Uniform cross over
+		결과 : 
+	
+	2. PMX
+		결과 : 
+
+	3. AdAdjacency Preserving Crossover
+		결과 : 
+*/
+void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) {
+	int gi = 0;
+	while(gi < genes) {
+		//1. Uniform CrossOver
+		string tmpr[R];
+		for(int i=0; i<R; i++) {
+			string tmpc;
+			for(int j=0; j<C; j++) {
+				double rv = genRandom(parent->size()); //랜덤값 생성
+				cout << "rv: " << rv << endl; //debug
+				tmpc += (*parent)[rv].gene[i][j];
+			}
+			tmpr[i] = tmpc;
+
+			//돌연변이?
+		}
+		Solution news = Solution(tmpr);
+		dest->push_back(news);
+		gi++;
+	}
+}
+
+/**
+ * @param{generation} : 세대 수 (Loop 수)
+ * @param{genes} : 1세대 당 유전자의 수 
+ * @return : 최고 점수 
 */
 int GeneticAlgorithm(int generation, int genes) {
-	// 1. genes 만큼 초기해 생성 
-	
-	
-	
-	// Crossover - 두 부모의 염색체 교환
-	
-	//인접한 부분이 영향을 끼치기 때문에 PMX 방식이나,
-	//Adjacency Preserving Crossover를 해봅시다. 
-	
+	// 1. genes 만큼 초기해 생성
+	vector<Solution> cursv;
+
+	int gi = 0;
+	while (gi < generation) {
+		// 2. 우수한 개체를 다음 세대의 부모로 선택
+		vector<Solution> parent = selectExcellentParent(&cursv);
+		// 3. Cross over : 두 부모로 새로운 자식 염색체 생성
+		// 이거 cursv에 넣을거임
+		cursv.clear(); //기존 자식 삭제
+		generateChild(&cursv, &parent, genes);
+		gi++;
+	}
+
+	// 마무리 : 가장 높은 상위 10개를 출력.
 	return (0);
 } 
 
 int main() {
+
 	int generation = 100; //100 세대 진행
 	int genes = 100; //100개의 유전자들
 	
