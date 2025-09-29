@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <random>
 #include <chrono>
+#include <fstream>
 # define R 8
 # define C 14
 using namespace std;
@@ -27,7 +28,8 @@ int genRandom(int end) {
 */
 class Solution {
 public:
-	string gene[R]; //실제 해 
+	string gene[R]; //실제 해
+	int fitness = -1;
 	
 	Solution() {}
 	Solution(string tmp[]) {
@@ -51,6 +53,9 @@ public:
 		그냥 단순히 BFS써서 현재 점수를 계산하는 방식으로 하시죠? 
 	*/
 	int Fitness() {
+		if (this->fitness != -1)
+			return (this->fitness);
+		
 		int score = 1;
 		while (1) {
 			string scorestr = to_string(score);
@@ -71,7 +76,8 @@ public:
 				break ;
 			score++;
 		}
-		return (score-1);
+		this->fitness = score-1;
+		return (this->fitness);
 	}
 	
 	int Fitness_BFS(string& scorestr, int i, int j, int idx) {
@@ -99,13 +105,15 @@ public:
 		return (flag);
 	}
 	
-	void output() {
-		cout << "Fitness: " << Fitness() << "\n";
+	void output(ostream& out) {
+		out << "Fitness: " << Fitness() << "\n";
 		for(int i=0; i<R; i++)
-			cout << gene[i] << "\n";
-		cout << "\n";
+			out << gene[i] << "\n";
+		out << "\n";
 	}
-}; 
+};
+
+Solution bestsol;
 
 
 /**
@@ -118,7 +126,7 @@ int cmp(Solution& s1, Solution& s2) {
 vector<Solution> selectExcellentParent(vector<Solution>* cursv) {
 	sort(cursv->begin(), cursv->end(), cmp);
 	
-	int psize = 2;
+	int psize = 50;
 	vector<Solution> nextParent;
 	for(int i=0; i<psize; i++) {
 		nextParent.push_back((*cursv)[i]);
@@ -129,16 +137,51 @@ vector<Solution> selectExcellentParent(vector<Solution>* cursv) {
 /**
 	- 부모로 자식 생성 (돌연변이 포함)
 	생성한 자식은 dest에 할당하기
+	=> Adjacency Preserving Crossover 비슷하게
 
-	1. Uniform cross over
-		결과 : 
+	1. 현재 숫자는 주변 8개의 숫자랑 다를 수록 확률이 높아짐.
+		0~9까지 숫자에서 상한선을 정해서 랜덤값 생성한 다음에 가장 높은거 선택 ㄱㄱ 
+	1-1. 단 자신과 같다면 상한선 조금 높게 설정
 	
-	2. PMX
-		결과 : 
-
-	3. AdAdjacency Preserving Crossover
-		결과 : 
 */
+int selectNum(string s[], int i, int j) {
+	int maxv = 0;
+	int maxnum = 0;
+	for(int num=0; num<10; num++) {
+		char numstr = (char)(num+48);
+		int flag = 0;
+		if (i>0 && s[i-1][j] == numstr) //상 
+			flag = 1;
+		if (i<R-1 && s[i+1][j] == numstr) //하 
+			flag = 1;
+		if (j>0 && s[i][j-1] == numstr) //좌 
+			flag = 1;
+		if (j<C-1 && s[i][j+1] == numstr) //우 
+			flag = 1;
+		if ((i>0 && j>0) && s[i-1][j-1] == numstr) //좌상 
+			flag = 1;
+		if ((i>0 && j<C-1) && s[i-1][j+1] == numstr) //우상 
+			flag = 1;
+		if ((i<R-1 && j>0) && s[i+1][j-1] == numstr) //좌하 
+			flag = 1;
+		if ((i<R-1 && j<C-1) && s[i+1][j+1] == numstr) //우하 
+			flag = 1;
+		
+		int rv;
+		if (flag == 1 && numstr == s[i][j])
+			rv = genRandom(800); //상한선 900
+		else if (flag == 1)
+			rv = genRandom(500); //상한선 800
+		else
+			rv = genRandom(1000); //상한선 1000
+		
+		if (rv > maxv) {
+			maxv = rv;
+			maxnum = num;
+		}
+	}
+	return (maxnum);
+}
 void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) {
 	int gi = 0;
 	while(gi < genes) {
@@ -147,16 +190,14 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 		for(int i=0; i<R; i++) {
 			string tmpc;
 			for(int j=0; j<C; j++) {
-				int rv = genRandom(parent->size()-1); //랜덤값 생성
-				tmpc += (*parent)[rv].gene[i][j];
+				int num = selectNum((*parent)[0].gene, i, j);
+				tmpc += to_string(num);
 			}
 			tmpr[i] = tmpc;
 
 			//돌연변이?
 		}
-		cout << endl; //debug
 		Solution news = Solution(tmpr);
-		news.output(); //debug
 		dest->push_back(news);
 		gi++;
 	}
@@ -174,7 +215,6 @@ int GeneticAlgorithm(int generation, int genes) {
 		Solution tmp;
 		tmp.initSol();
 		cursv.push_back(tmp);
-		tmp.output(); //debug
 	}
 
 	int gi = 0;
@@ -182,34 +222,71 @@ int GeneticAlgorithm(int generation, int genes) {
 		cout << "GEN" << gi << endl; //debug
 		// 2. 우수한 개체를 다음 세대의 부모로 선택
 		vector<Solution> parent = selectExcellentParent(&cursv);
+		// 2-1. best Solution 판단
+		if (parent[0].Fitness() > bestsol.Fitness())
+			bestsol = parent[0];
+
 		// 3. Cross over : 두 부모로 새로운 자식 염색체 생성
-		// 이거 cursv에 넣을거임
 		cursv.clear(); //기존 자식 삭제
 		generateChild(&cursv, &parent, genes);
 		gi++;
 	}
 
-	// 마무리 : 가장 높은 상위 10개를 출력.
+
+	sort(cursv.begin(), cursv.end(), cmp);
+	// best Solution 판단
+	if (cursv[0].Fitness() > bestsol.Fitness())
+		bestsol = cursv[0];
 	
-	cout << "RESULT" << endl; //debug
-	for(int i=0; i<genes; i++)
-		cursv[i].output();
+	//이번 프로그램에서 가장 좋았던 5개 출력
+	cout << endl << "RESULT" << endl; //debug
+	for(int i=0; i<5; i++)
+		cursv[i].output(cout);
 	
 	return (0);
 } 
 
 int main() {
+	int generation = 100; // generation LOOP
+	int genes = 100; //number of genes
 
-	int generation = 10; //100 세대 진행
-	int genes = 10; //100개의 유전자들
+	// //임시 검증
+	// string tmp[R];
+	// for(int i=0; i<R; i++)
+	// 	cin >> tmp[i];
+	// Solution tmpsol = Solution(tmp);
+	// tmpsol.output(cout);
+
+	// 0. init bestsol (Prev GA's best)
+	ifstream ifs("./best.txt");
+	if (!ifs.is_open()) {
+		cout << "Error opening file" << endl;
+		return (1);
+	}
 	
-//	string tmp[R];
-//	for(int i=0; i<R; i++)
-//		cin >> tmp[i];
-//	Solution tmpsol = Solution(tmp);
-//	tmpsol.output();
+	string line;
+	getline(ifs, line); //first line is Fitness
+	int ri = 0;
+	string prevbest[R];
+	while (getline(ifs, line)) {
+		if (line.size() <= 1)
+			break ;
+		prevbest[ri] = line;
+		ri++;
+	}
+	ifs.close();
+
+	bestsol = Solution(prevbest);
+	bestsol.output(cout);
 	
-	int res = GeneticAlgorithm(generation, genes); 
+	int res = GeneticAlgorithm(generation, genes);
+
+	// write best solution in "best.txt"
+	ofstream ofs("./best.txt");
+	if (ofs.is_open()) {
+		bestsol.output(ofs);
+		ofs.close();
+	}
 	
 	return (0);
 }
