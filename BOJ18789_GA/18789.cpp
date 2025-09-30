@@ -128,7 +128,8 @@ vector<Solution> selectExcellentParent(vector<Solution>* cursv) {
 	
 	int psize = 1;
 	vector<Solution> nextParent;
-	for(int i=0; i<psize; i++) {
+	//nextParent.push_back(bestsol);
+	for(int i=0; i<cursv->size(); i++) {
 		nextParent.push_back((*cursv)[i]);
 	}
 	return (nextParent);
@@ -254,7 +255,7 @@ int GeneticAlgorithm(int generation, int genes) {
 } 
 
 int main() {
-	int generation = 1000; // generation LOOP
+	int generation = 3000; // generation LOOP
 	int genes = 100; //number of genes
 
 	// //임시 검증
