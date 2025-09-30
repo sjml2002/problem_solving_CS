@@ -254,7 +254,7 @@ int GeneticAlgorithm(int generation, int genes) {
 } 
 
 int main() {
-	int generation = 10; // generation LOOP
+	int generation = 1000; // generation LOOP
 	int genes = 100; //number of genes
 
 	// //임시 검증
