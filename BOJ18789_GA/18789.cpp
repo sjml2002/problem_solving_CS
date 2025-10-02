@@ -154,29 +154,37 @@ int selectNum(string s[], int i, int j) {
 		char numstr = (char)(num+48);
 		int flag = 0;
 		if (i>0 && s[i-1][j] == numstr) //상 
-			flag = 1;
+			flag++;
 		if (i<R-1 && s[i+1][j] == numstr) //하 
-			flag = 1;
+			flag++;
 		if (j>0 && s[i][j-1] == numstr) //좌 
-			flag = 1;
+			flag++;
 		if (j<C-1 && s[i][j+1] == numstr) //우 
-			flag = 1;
+			flag++;
 		if ((i>0 && j>0) && s[i-1][j-1] == numstr) //좌상 
-			flag = 1;
+			flag++;
 		if ((i>0 && j<C-1) && s[i-1][j+1] == numstr) //우상 
-			flag = 1;
+			flag++;
 		if ((i<R-1 && j>0) && s[i+1][j-1] == numstr) //좌하 
-			flag = 1;
+			flag++;
 		if ((i<R-1 && j<C-1) && s[i+1][j+1] == numstr) //우하 
-			flag = 1;
+			flag++;
 		
+		//Rank Based Selection 비스무리 하게
 		int rv;
-		if (flag == 1 && numstr == s[i][j])
-			rv = genRandom(800); //상한선 900
-		else if (flag == 1)
-			rv = genRandom(600); //상한선 800
-		else
-			rv = genRandom(1000); //상한선 1000
+		if (flag == 1) { //같은 숫자 연속적으로 나올 수 있도록
+			//만약에 현재 위치가 끝쪽이라면 최대한 다른값 선택할 수 있도록
+			if (i==0 || i==R-1 || j==0 || j==C-1)
+				rv = genRandom(0);
+			else
+				rv = genRandom(700); //상한선 설정
+		}
+		else if (flag >= 4) //num과 같은숫자가 주변에 과도하게 많다면 선택되지 않도록
+			rv = genRandom(0);
+		else if (flag == 0) //num과 같은 숫자가 주변에 하나도 없다면 선택할 확률 매우 높임
+			rv = genRandom(1000);
+		else //flag가 적을수록 선택될 확률을 높임
+			rv = genRandom(1000/flag); //flag=2 : 500 , flag=3 : 333
 		
 		if (rv > maxv) {
 			maxv = rv;
@@ -252,18 +260,19 @@ int GeneticAlgorithm(int generation, int genes) {
 		cursv[i].output(cout);
 	
 	return (0);
-} 
+}
+
 
 int main() {
-	int generation = 3000; // generation LOOP
+	int generation = 1000; // generation LOOP
 	int genes = 100; //number of genes
 
-	// //임시 검증
-	// string tmp[R];
-	// for(int i=0; i<R; i++)
-	// 	cin >> tmp[i];
-	// Solution tmpsol = Solution(tmp);
-	// tmpsol.output(cout);
+	//임시 검증
+	string tmp[R];
+	for(int i=0; i<R; i++)
+		cin >> tmp[i];
+	Solution tmpsol = Solution(tmp);
+	tmpsol.output(cout);
 
 	// 0. init bestsol (Prev GA's best)
 	ifstream ifs("./best.txt");
