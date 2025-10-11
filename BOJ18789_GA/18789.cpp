@@ -7,7 +7,7 @@
 #include <fstream>
 # define R 8
 # define C 14
-# define PSIZE 10 //부모의 총 개수
+# define PSIZE 3 //부모의 총 개수
 using namespace std;
 
 /**
@@ -38,13 +38,6 @@ public:
 	Solution(string tmp[]) {
 		for(int i=0; i<R; i++)
 			gene[i] = tmp[i];
-	}
-	bool operator==(Solution& other) {
-		for(int i=0; i<R; i++) {
-			if (this->gene[i] != other.gene[i])
-				return (0);
-		}
-		return (1);
 	}
 
 	
@@ -139,13 +132,7 @@ void updateBest(vector<Solution>& bestsol, const vector<Solution>& cursv) {
     int bssize = bestsol.size();
     vector<Solution> merged = bestsol;
     merged.insert(merged.end(), cursv.begin(), cursv.end()); //bestsol + cursv
-
-    // 중복 제거 (같은 Solution 제거)
-    sort(merged.begin(), merged.end(), sortcmp);
-
-    merged.erase(unique(merged.begin(), merged.end(), [](Solution& a, Solution& b) {
-        return (a == b); // operator== 사용
-    }), merged.end());
+	sort(merged.begin(), merged.end(), sortcmp);
 
     // 상위 bssize만 남기기
     if (merged.size() > bssize)
@@ -163,11 +150,7 @@ vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize) {
 	sort(cursv->begin(), cursv->end(), sortcmp);
 
 	vector<Solution> nextParent;
-	int bpsize = 3;
-	for(int i=0; i<bpsize; i++) { //역대 best solution 중 상위 bpsize개 선택
-		nextParent.push_back(bestsol[i]);
-	}
-	for(int i=0; i<PSIZE-bpsize; i++) { //현재 solution 중 상위 PSIZE - bpsize개 선택
+	for(int i=0; i<PSIZE; i++) {
 		nextParent.push_back((*cursv)[i]);
 	}
 	return (nextParent);
@@ -249,18 +232,17 @@ int selectNum(string s[], int i, int j) {
 	3-2. 계속 같은 자식을 생성하기 때문에 Fitness가 동일한거는 제외해야할듯
 */
 
-//cur과 동일한 Fitness를 가진 것이 이미 dest에 존재하는지?
-int findsameFitness(vector<Solution>* dest, Solution* cur) {
-	for(int i=0; i<dest->size(); i++) {
-		if ((*dest)[i].Fitness() == cur->Fitness())
-			return (1);
-	}
-	return (0);
-}
-
+// //dest안의 Solution과 중복인 cur이 존재하는지
+// int findsameFitness(vector<Solution>* dest, Solution* cur) {
+// 	for(int i=0; i<dest->size(); i++) {
+// 		if ((*dest)[i].Fitness() == cur->Fitness())
+// 			return (1);
+// 	}
+// 	return (0);
+// } 
 
 void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) {
-	int mp = 2; //mp% 확률로 돌연변이
+	int mp = 1; //mp% 확률로 돌연변이
 
 	//pi 부모와 pj 부모의 조합으로 crossover
 	for(int pi=0; pi<parent->size()-1; pi++) {
@@ -283,7 +265,7 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 						}
 					}
 				}
-				if (!findsameFitness(dest, &pb)) //pb가 중복이 아닐때만 넣기
+				//if (!findsameFitness(dest, &pb)) //pb가 중복인지 확인
 					dest->push_back(pb);
 			}
 			
@@ -306,23 +288,23 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 						}
 					}
 				}
-				if (!findsameFitness(dest, &pb)) //pb가 중복이 아닐때만 넣기
+				//if (!findsameFitness(dest, &pb)) //pb가 중복인지 확인
 					dest->push_back(pb);
 			}
 		}
 	}
 
-	//dest의 개수를 상위 genes로 줄이기
-	if (dest->size() > genes) {
-		sort(dest->begin(), dest->end(), sortcmp);
-		dest->resize(genes);
-	}
-	else if (dest->size() < genes) { //기존의 부모들로 dest의 개수를 genes로 채우기
-		int pi = 0;
-		for(int gi=dest->size(); gi < genes; gi++) {
-			dest->push_back((*parent)[pi++]);
-		}
-	}
+	// //dest의 개수를 상위 genes로 줄이기
+	// if (dest->size() > genes) {
+	// 	sort(dest->begin(), dest->end(), sortcmp);
+	// 	dest->resize(genes);
+	// }
+	// else if (dest->size() < genes) { //기존의 부모들로 dest의 개수를 genes로 채우기
+	// 	int pi = 0;
+	// 	for(int gi=dest->size(); gi < genes; gi++) {
+	// 		dest->push_back((*parent)[pi++]);
+	// 	}
+	// }
 }
 
 /**
@@ -333,10 +315,11 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 int GeneticAlgorithm(int generation, int genes, int bssize) {
 	// 1. 초기해 (bestsol, bestsol2)
 	vector<Solution> cursv;
-	for(int i=0; i<bestsol.size(); i++)
+	int randomSize = 1;
+	for(int i=0; i<PSIZE-randomSize; i++)
 		cursv.push_back(bestsol[i]);
 	// 1-1. 초기해 랜덤
-	for(int i=0; i<PSIZE-bestsol.size(); i++) {
+	for(int i=0; i<randomSize; i++) {
 		Solution tmp;
 		tmp.initSol();
 		cursv.push_back(tmp);
@@ -380,9 +363,9 @@ int GeneticAlgorithm(int generation, int genes, int bssize) {
 
 
 int main() {
-	int generation = 50; // generation LOOP
+	int generation = 10000; // generation LOOP
 	int genes = 100; //number of gene
-	int bestsolsize = 5;
+	int bestsolsize = 2;
 
 	//임시 검증
 //	string tmp[R];
