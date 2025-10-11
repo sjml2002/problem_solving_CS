@@ -312,7 +312,7 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
  * @param{genes} : 1세대 당 유전자의 수 
  * @return : 최고 점수 
 */
-int GeneticAlgorithm(int generation, int genes, int bssize) {
+int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 	// 1. 초기해 (bestsol, bestsol2)
 	vector<Solution> cursv;
 	int randomSize = 1;
@@ -331,7 +331,7 @@ int GeneticAlgorithm(int generation, int genes, int bssize) {
 		// 2. 우수한 개체를 다음 세대의 부모로 선택
 		vector<Solution> parent = selectExcellentParent(&cursv, bssize);
 		
-		cout << "GEN" << gi << ": " << parent[0].Fitness() << " / " << bestsol[0].Fitness() << endl; //debug : 현재 세대 Fitness
+		cout << ti << " - GEN" << gi << ": " << parent[0].Fitness() << " / " << bestsol[0].Fitness() << endl; //debug : 현재 세대 Fitness
 
 		// 3. Cross over : 두 부모로 새로운 자식 염색체 생성
 		cursv.clear(); //기존 자식 삭제
@@ -363,54 +363,61 @@ int GeneticAlgorithm(int generation, int genes, int bssize) {
 
 
 int main() {
-	int generation = 10000; // generation LOOP
-	int genes = 100; //number of gene
-	int bestsolsize = 2;
+	int testcase = 10;
+	int ti = 0;
+	while (ti < testcase) {
+		cout << "========= testcase " << ti << "=========" << endl;
 
-	//임시 검증
-//	string tmp[R];
-//	for(int i=0; i<R; i++)
-//		cin >> tmp[i];
-//	Solution tmpsol = Solution(tmp);
-//	tmpsol.output(cout);
+		int generation = 8000; // generation LOOP
+		int genes = 100; //number of gene
+		int bestsolsize = 2;
 
-	// 0. init bestsol (Prev GA's best)
-	ifstream ifs("./best.txt");
-	if (!ifs.is_open()) {
-		cout << "Error opening file" << endl;
-		return (1);
-	}
+		//임시 검증
+	//	string tmp[R];
+	//	for(int i=0; i<R; i++)
+	//		cin >> tmp[i];
+	//	Solution tmpsol = Solution(tmp);
+	//	tmpsol.output(cout);
 
-	string line;
-	for(int i=0; i<bestsolsize; i++) {
-		getline(ifs, line); //first line is Fitness
-		int ri = 0;
-		string prevbest[R];
-		while (getline(ifs, line)) {
-			if (line.size() <= 1)
-				break ;
-			prevbest[ri] = line;
-			ri++;
+		// 0. init bestsol (Prev GA's best)
+		ifstream ifs("./best.txt");
+		if (!ifs.is_open()) {
+			cout << "Error opening file" << endl;
+			return (1);
 		}
-		bestsol.push_back(Solution(prevbest));
 
-		bestsol[i].output(cout); //debug
-	}
-	ifs.close();
-	
-	int res = GeneticAlgorithm(generation, genes, bestsolsize);
+		string line;
+		for(int i=0; i<bestsolsize; i++) {
+			getline(ifs, line); //first line is Fitness
+			int ri = 0;
+			string prevbest[R];
+			while (getline(ifs, line)) {
+				if (line.size() <= 1)
+					break ;
+				prevbest[ri] = line;
+				ri++;
+			}
+			bestsol.push_back(Solution(prevbest));
 
-	// write best solution in "best.txt"
-	ofstream ofs("./best.txt");
-	if (ofs.is_open()) {
-		/** 만약 best.txt에 기록되는 해를 늘리고 싶다면 bestsol.size()로 바꾸기 */
-		// for(int i=0; i<bestsolsize; i++) {
-		// 	bestsol[i].output(ofs);
-		// }
-		for(int i=0; i<bestsol.size(); i++) {
-			bestsol[i].output(ofs);
+			bestsol[i].output(cout); //debug
 		}
-		ofs.close();
+		ifs.close();
+		
+		int res = GeneticAlgorithm(ti, generation, genes, bestsolsize);
+
+		// write best solution in "best.txt"
+		ofstream ofs("./best.txt");
+		if (ofs.is_open()) {
+			/** 만약 best.txt에 기록되는 해를 늘리고 싶다면 bestsol.size()로 바꾸기 */
+			// for(int i=0; i<bestsolsize; i++) {
+			// 	bestsol[i].output(ofs);
+			// }
+			for(int i=0; i<bestsol.size(); i++) {
+				bestsol[i].output(ofs);
+			}
+			ofs.close();
+		}
+		ti++;
 	}
 	
 	return (0);
