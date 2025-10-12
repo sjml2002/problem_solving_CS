@@ -363,12 +363,12 @@ int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 
 
 int main() {
-	int testcase = 15;
+	int testcase = 5;
 	int ti = 0;
 	while (ti < testcase) {
 		cout << "========= testcase " << ti << "=========" << endl;
 
-		int generation = 8000; // generation LOOP
+		int generation = 4000; // generation LOOP
 		int genes = 100; //number of gene
 		int bestsolsize = 2;
 
