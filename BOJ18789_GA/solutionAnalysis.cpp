@@ -1,7 +1,7 @@
 #include "libct.h"
 # define R 8
 # define C 14
-# define MAXNUM 999
+# define MAXNUM 8140
 using namespace std;
 
 /**
@@ -131,8 +131,10 @@ public:
         out << "------------------------\n";
 
         out << "use count=1 (unique), each score\n";
+        int uniqueCnt = 0;
         for(int score=1; score<=MAXNUM; score++) {
             if (possibleRepresent[score].size() == 1) {
+                uniqueCnt++;
                 out << score << ": " << possibleRepresent[score].size() << "\n";
                 for(int pi=0; pi<possibleRepresent[score].size(); pi++) {
                     //output path
@@ -146,6 +148,7 @@ public:
                 out << "\n";
             }
         }
+        out << "total uniqueCnt: " << uniqueCnt << "\n";
 	}
 };
 
