@@ -77,8 +77,6 @@ public:
                         }
 					}
 				}
-				if (flag)
-					break ;
 			}
 			
 			if (possibleRepresent[score].size() == 1)
@@ -379,7 +377,7 @@ int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 
 
 int main() {
-	int testcase = 5;
+	int testcase = 25;
 	int ti = 0;
 	while (ti < testcase) {
 		cout << "========= testcase " << ti << "=========" << endl;
