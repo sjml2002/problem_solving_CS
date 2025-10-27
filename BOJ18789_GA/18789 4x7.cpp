@@ -1,8 +1,7 @@
 #include "libct.h"
-# define R 8
-# define C 14
+# define R 4
+# define C 7
 # define PSIZE 3 //부모의 총 개수
-# define MAXNUM 8140
 using namespace std;
 
 /**
@@ -27,9 +26,7 @@ class Solution {
 public:
 	string gene[R]; //실제 해
 	int fitness = -1;
-	vector<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
-	int uniquePathCnt = 0;
-
+	
 	Solution() {}
 	Solution(string tmp[]) {
 		for(int i=0; i<R; i++)
@@ -47,18 +44,10 @@ public:
 			gene[i] = tmp;
 		}
 	}
-
-	/**
-	 
-	 */
-
 	
 	/**
-	 * - 적합도 평가 (점수 채점) 
-	 * 실제 점수 - (upc)*uniquePathCnt
-	 * //upc는 uniquePathCnt 가중치를 얼마나 적용할 것인지에 대한 비율
-	 * uniquePathCnt는 score을 만들 수 있는 방법이 단 하나밖에 없는 score들을 카운트한다.
-	 * uniquePathCnt는 후에 Fitness에 음수 가중치로 들어간다.
+		- 적합도 평가 (점수 채점) 
+		그냥 단순히 BFS써서 현재 점수를 계산하는 방식으로 하시죠? 
 	*/
 	int Fitness() {
 		if (this->fitness != -1)
@@ -370,7 +359,7 @@ int main() {
 	int testcase = 5;
 	int ti = 0;
 	while (ti < testcase) {
-		cout << "========= testcase " << ti << "=========" << endl;
+		cout << "========= testcase? " << ti << "=========" << endl;
 
 		int generation = 4000; // generation LOOP
 		int genes = 100; //number of gene
@@ -384,7 +373,7 @@ int main() {
 	//	tmpsol.output(cout);
 
 		// 0. init bestsol (Prev GA's best)
-		ifstream ifs("./best.txt");
+		ifstream ifs("./best4x7.txt");
 		if (!ifs.is_open()) {
 			cout << "Error opening file" << endl;
 			return (1);
@@ -410,7 +399,7 @@ int main() {
 		int res = GeneticAlgorithm(ti, generation, genes, bestsolsize);
 
 		// write best solution in "best.txt"
-		ofstream ofs("./best.txt");
+		ofstream ofs("./best4x7.txt");
 		if (ofs.is_open()) {
 			/** 만약 best.txt에 기록되는 해를 늘리고 싶다면 bestsol.size()로 바꾸기 */
 			// for(int i=0; i<bestsolsize; i++) {
