@@ -30,7 +30,7 @@ public:
 	int fitscore = -1;
 	vector<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
 	int uniquePathCnt = 0;
-	double upc = 0.01;
+	double upc = 0.5;
 
 	Solution() {}
 	Solution(string tmp[]) {

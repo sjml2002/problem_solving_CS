@@ -1,6 +1,6 @@
 #include "libct.h"
-# define R 5
-# define C 7
+# define R 8
+# define C 14
 using namespace std;
 
 /*
@@ -260,7 +260,7 @@ int main() {
 	//	tmpsol.output(cout);
 
 		// 0. init bestsol (Prev GA's best)
-		ifstream ifs("./best4x7.txt");
+		ifstream ifs("./best.txt");
 		if (!ifs.is_open()) {
 			cout << "Error opening file" << endl;
 			return (1);
@@ -283,7 +283,7 @@ int main() {
 		int res = bruteForceMain(generation, genes);
 
 		// write best solution in "best.txt"
-		ofstream ofs("./best_bruteforce.txt");
+		ofstream ofs("./best.txt");
 		if (ofs.is_open()) {
 			/** 만약 best.txt에 기록되는 해를 늘리고 싶다면 bestsol.size()로 바꾸기 */
 			// for(int i=0; i<bestsolsize; i++) {
