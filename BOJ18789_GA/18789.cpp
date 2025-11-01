@@ -28,9 +28,9 @@ public:
 	string gene[R]; //실제 해
 	int fitness = -1;
 	int fitscore = -1;
-	vector<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
+	set<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
 	int uniquePathCnt = 0;
-	double upc = 0.5;
+	double upc = 0.6;
 
 	Solution() {}
 	Solution(string tmp[]) {
@@ -72,7 +72,7 @@ public:
 						vector<pair<int, int>> path;
 						int successFlag = Fitness_BFS(&path, scorestr, i, j, 1);
 						if (successFlag) {
-                            possibleRepresent[score].push_back(path);
+                            possibleRepresent[score].insert(path);
                             flag = 1;
                         }
 					}
@@ -205,7 +205,7 @@ int selectNum(string s[], int i, int j) {
 			if (i==0 || i==R-1 || j==0 || j==C-1)
 				rv = genRandom(0);
 			else
-				rv = genRandom(700); //상한선 설정
+				rv = genRandom(600); //상한선 설정
 		}
 		else if (flag >= 4) //num과 같은숫자가 주변에 과도하게 많다면 선택되지 않도록
 			rv = genRandom(0);
@@ -255,7 +255,7 @@ int selectNum(string s[], int i, int j) {
 // } 
 
 void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) {
-	int mp = 1; //mp% 확률로 돌연변이
+	int mp = 16; //mp% 확률로 돌연변이
 
 	//pi 부모와 pj 부모의 조합으로 crossover
 	for(int pi=0; pi<parent->size()-1; pi++) {
@@ -271,7 +271,7 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 					
 					// Mutation
 					for(int j=0; j<C; j++) {
-						int rv = genRandom(100);
+						int rv = genRandom(1000);
 						if (rv <= mp) {
 							int sn = selectNum(pb.gene, i, j);
 							pb.gene[i][j] = (char)(sn+48);
@@ -294,7 +294,7 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 							pb.gene[i].push_back((*parent)[pj].gene[i][j]);
 						
 						//Mutation
-						int rv = genRandom(100);
+						int rv = genRandom(1000);
 						if (rv <= mp) {
 							int sn = selectNum(pb.gene, i, j);
 							pb.gene[i][j] = (char)(sn+48);

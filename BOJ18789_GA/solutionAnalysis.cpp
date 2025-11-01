@@ -5,7 +5,7 @@
 using namespace std;
 
 /**
- * <1.> 각 격자별로 숫자 카운팅에 몇번 사용됐는지?
+ * <1.> 격자의 각 원소가 unique path로 몇 개의 score을 감당하고 있는지
  * <2.> 숫자 n을 표현할 수 있는 곳이 어디인지?
  *      그리고 숫자 n을 표현할 수 있는 곳의 총 개수? -> vector size로 하면 될듯
  */
@@ -14,15 +14,16 @@ class SolutionAnalysis {
 public:
 	string gene[R]; //실제 해
 	int fitness = -1;
-    int vis[R][C]; //1.
-    vector<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
+    int visUniquePath[R][C]; //1.
+    set<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
+    
 	
 	SolutionAnalysis() {}
 	SolutionAnalysis(string tmp[]) {
 		for(int i=0; i<R; i++) {
             gene[i] = tmp[i];
             for(int j=0; j<C; j++)
-                vis[i][j] = 0;
+                visUniquePath[i][j] = 0;
         }
 			
 	}
@@ -47,7 +48,7 @@ public:
                         vector<pair<int, int>> path;
 						int successFlag = Fitness_BFS(&path, scorestr, i, j, 1);
 						if (successFlag) {
-                            possibleRepresent[score].push_back(path);
+                            possibleRepresent[score].insert(path);
                             flag = 1;
 
                         }
@@ -58,12 +59,14 @@ public:
                 fitscore = score;
 			score++;
 		}
+
+        calc_visUniquePath();
+
 		this->fitness = fitscore-1;
 		return (this->fitness);
 	}
 	
 	int Fitness_BFS(vector<pair<int, int>>* path, string& scorestr, int i, int j, int idx) {
-        vis[i][j]++; //<1.> i, j가 사용됨
         path->push_back(make_pair(i,j));
 
 		if (idx == scorestr.size())
@@ -91,6 +94,25 @@ public:
             path->pop_back();
 		return (flag);
 	}
+
+
+    /**
+     * 전부 계산된 possibleRepresent를 가지고
+     * visUniquePath 계산하기 (각 격자의 원소가 unique path로 몇 개의 score을 감당하고 있는지?)
+     */
+    void calc_visUniquePath() {
+        for(int score=0; score<=MAXNUM; score++) {
+            if (possibleRepresent[score].size() == 1) {
+                //path 은 score에서 unique한 path임.
+                for(auto path=possibleRepresent[score].begin(); path != possibleRepresent[score].end(); path++) {
+                    int y = (*path)[0].first;
+                    int x = (*path)[0].second;
+                    visUniquePath[y][x]++;
+                }
+            }
+        }
+    }
+
 	
 	void output(ostream& out) {
 		out << "Fitness: " << FitnessAnalysis() << "\n";
@@ -98,10 +120,10 @@ public:
 			out << gene[i] << "\n";
 		out << "------------------------\n";
 
-        out << "counting in vis\n";
+        out << "visUniquePath : counting uniquePath each score\n";
         for(int i=0; i<R; i++) {
             for(int j=0; j<C; j++)
-                out << vis[i][j] << " ";
+                out << visUniquePath[i][j] << " ";
             out << "\n";
         }
         out << "------------------------\n";
@@ -109,11 +131,11 @@ public:
         out << "use count each score\n";
         for(int score=1; score<=MAXNUM; score++) {
             out << score << ": " << possibleRepresent[score].size() << "\n";
-            for(int pi=0; pi<possibleRepresent[score].size(); pi++) {
+            for(auto path=possibleRepresent[score].begin(); path != possibleRepresent[score].end(); path++) {
                 //output path
-                for(int i=0; i<possibleRepresent[score][pi].size(); i++)  {
-                    int y = possibleRepresent[score][pi][i].first;
-                    int x = possibleRepresent[score][pi][i].second;
+                for(int i=0; i<path->size(); i++)  {
+                    int y = (*path)[i].first;
+                    int x = (*path)[i].second;
                     out << "(" << y << "," << x << "), ";
                 }
                 out << "\n";                
@@ -136,11 +158,11 @@ public:
             if (possibleRepresent[score].size() == 1) {
                 uniqueCnt++;
                 out << score << ": " << possibleRepresent[score].size() << "\n";
-                for(int pi=0; pi<possibleRepresent[score].size(); pi++) {
+                for(auto path=possibleRepresent[score].begin(); path != possibleRepresent[score].end(); path++) {
                     //output path
-                    for(int i=0; i<possibleRepresent[score][pi].size(); i++)  {
-                        int y = possibleRepresent[score][pi][i].first;
-                        int x = possibleRepresent[score][pi][i].second;
+                    for(int i=0; i<path->size(); i++)  {
+                        int y = (*path)[i].first;
+                        int x = (*path)[i].second;
                         out << "(" << y << "," << x << "), ";
                     }
                     out << "\n";                
@@ -149,6 +171,29 @@ public:
             }
         }
         out << "total uniqueCnt: " << uniqueCnt << "\n";
+
+        out << "------------------------\n";
+        out << "use count=0 (zero), each score\n";
+        int zeroCnt = 0;
+        for(int score=1; score<=MAXNUM; score++) {
+            if (possibleRepresent[score].size() == 0) {
+                zeroCnt++;
+                out << score << ": " << possibleRepresent[score].size() << "\n";
+                for(auto path=possibleRepresent[score].begin(); path != possibleRepresent[score].end(); path++) {
+                    //output path
+                    for(int i=0; i<path->size(); i++)  {
+                        int y = (*path)[i].first;
+                        int x = (*path)[i].second;
+                        out << "(" << y << "," << x << "), ";
+                    }
+                    out << "\n";                
+                }
+                out << "\n";
+            }
+        }
+        out << "total zeroCnt: " << zeroCnt << "\n";
+
+
 	}
 };
 

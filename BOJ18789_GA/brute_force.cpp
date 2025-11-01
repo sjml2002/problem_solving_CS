@@ -216,6 +216,11 @@ int bruteForceMain(int generation, int genes) {
         // 1-1. best Solution 판단
 		if (parent.Fitness() > bestsol.Fitness())
             bestsol = parent;
+        else if (cursv[0].Fitness() == bestsol.Fitness()) {
+	    	int rv = genRandom(10);
+	    	if (rv < 5)
+	    		bestsol = cursv[0];
+		}
 		
 		cout << " - GEN" << gi << ": " << parent.Fitness() << " / " << bestsol.Fitness() << endl; //debug : 현재 세대 Fitness
 
@@ -229,6 +234,11 @@ int bruteForceMain(int generation, int genes) {
     sort(cursv.begin(), cursv.end(), sortcmp);
     if (cursv[0].Fitness() > bestsol.Fitness())
             bestsol = cursv[0];
+    else if (cursv[0].Fitness() == bestsol.Fitness()) {
+    	int rv = genRandom(10);
+    	if (rv < 5)
+    		bestsol = cursv[0];
+	}
 	
 	//이번 프로그램에서 가장 좋았던 5개 출력
 	// (TODO 251011) 해의 동일성 및 Fitness 수렴도
@@ -244,7 +254,7 @@ int bruteForceMain(int generation, int genes) {
 
 
 int main() {
-	int testcase = 5;
+	int testcase = 10;
 	int ti = 0;
 	while (ti < testcase) {
 		cout << "========= testcase " << ti << "=========" << endl;
@@ -283,7 +293,7 @@ int main() {
 		int res = bruteForceMain(generation, genes);
 
 		// write best solution in "best.txt"
-		ofstream ofs("./best.txt");
+		ofstream ofs("./best_bruteforce.txt");
 		if (ofs.is_open()) {
 			/** 만약 best.txt에 기록되는 해를 늘리고 싶다면 bestsol.size()로 바꾸기 */
 			// for(int i=0; i<bestsolsize; i++) {
