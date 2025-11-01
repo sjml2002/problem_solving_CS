@@ -1,7 +1,8 @@
 #include "libct.h"
-# define R 5
+# define R 4
 # define C 7
-# define PSIZE 3 //부모의 총 개수
+# define PSIZE 6 //부모의 총 개수
+# define MAXNUM 8140
 using namespace std;
 
 /**
@@ -26,7 +27,11 @@ class Solution {
 public:
 	string gene[R]; //실제 해
 	int fitness = -1;
-	
+	int fitscore = -1;
+	set<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
+	int uniquePathCnt = 0;
+	double upc = 0.6;
+
 	Solution() {}
 	Solution(string tmp[]) {
 		for(int i=0; i<R; i++)
@@ -44,10 +49,14 @@ public:
 			gene[i] = tmp;
 		}
 	}
+
 	
 	/**
-		- 적합도 평가 (점수 채점) 
-		그냥 단순히 BFS써서 현재 점수를 계산하는 방식으로 하시죠? 
+	 * - 적합도 평가 (점수 채점) 
+	 * 실제 점수 - (upc)*uniquePathCnt
+	 * //upc는 uniquePathCnt 가중치를 얼마나 적용할 것인지에 대한 비율
+	 * uniquePathCnt는 score을 만들 수 있는 방법이 단 하나밖에 없는 score들을 카운트한다.
+	 * uniquePathCnt는 후에 Fitness에 음수 가중치로 들어간다.
 	*/
 	int Fitness() {
 		if (this->fitness != -1)
@@ -56,54 +65,65 @@ public:
 		int score = 1;
 		while (1) {
 			string scorestr = to_string(score);
-			int successFlag = 0;
+			int flag = 0;
 			for(int i=0; i<R; i++) {
 				for(int j=0; j<C; j++) {
 					if (scorestr[0] == gene[i][j]) {
-						successFlag = Fitness_BFS(scorestr, i, j, 1);
-						if (successFlag)
-							break ;
+						vector<pair<int, int>> path;
+						int successFlag = Fitness_BFS(&path, scorestr, i, j, 1);
+						if (successFlag) {
+                            possibleRepresent[score].insert(path);
+                            flag = 1;
+                        }
 					}
 				}
-				if (successFlag)
-					break ;
 			}
 			
-			if (!successFlag) //score을 찾지 못했음 
+			if (possibleRepresent[score].size() == 1)
+				uniquePathCnt++;
+			
+			if (!flag) //score을 찾지 못했음 
 				break ;
 			score++;
 		}
-		this->fitness = score-1;
+
+		this->fitscore = score-1;
+		this->fitness = score-1 - (upc * uniquePathCnt);
 		return (this->fitness);
 	}
 	
-	int Fitness_BFS(string& scorestr, int i, int j, int idx) {
+	int Fitness_BFS(vector<pair<int, int>>* path, string& scorestr, int i, int j, int idx) {
+        path->push_back(make_pair(i,j));
+
 		if (idx == scorestr.size())
 			return (1);
 		
 		int flag = 0;
-		if (i>0 && gene[i-1][j] == scorestr[idx]) //상 
-			flag = flag | Fitness_BFS(scorestr, i-1, j, idx+1);
-		if (i<R-1 && gene[i+1][j] == scorestr[idx]) //하 
-			flag = flag | Fitness_BFS(scorestr, i+1, j, idx+1);
-		if (j>0 && gene[i][j-1] == scorestr[idx]) //좌 
-			flag = flag | Fitness_BFS(scorestr, i, j-1, idx+1);
-		if (j<C-1 && gene[i][j+1] == scorestr[idx]) //우 
-			flag = flag | Fitness_BFS(scorestr, i, j+1, idx+1);
-		if ((i>0 && j>0) && gene[i-1][j-1] == scorestr[idx]) //좌상 
-			flag = flag | Fitness_BFS(scorestr, i-1, j-1, idx+1);
-		if ((i>0 && j<C-1) && gene[i-1][j+1] == scorestr[idx]) //우상 
-			flag = flag | Fitness_BFS(scorestr, i-1, j+1, idx+1);
-		if ((i<R-1 && j>0) && gene[i+1][j-1] == scorestr[idx]) //좌하 
-			flag = flag | Fitness_BFS(scorestr, i+1, j-1, idx+1);
-		if ((i<R-1 && j<C-1) && gene[i+1][j+1] == scorestr[idx]) //우하 
-			flag = flag | Fitness_BFS(scorestr, i+1, j+1, idx+1);
-		
+		if (!flag && i>0 && gene[i-1][j] == scorestr[idx]) //상 
+			flag = flag | Fitness_BFS(path, scorestr, i-1, j, idx+1);
+		if (!flag && i<R-1 && gene[i+1][j] == scorestr[idx]) //하 
+			flag = flag | Fitness_BFS(path, scorestr, i+1, j, idx+1);
+		if (!flag && j>0 && gene[i][j-1] == scorestr[idx]) //좌 
+			flag = flag | Fitness_BFS(path, scorestr, i, j-1, idx+1);
+		if (!flag && j<C-1 && gene[i][j+1] == scorestr[idx]) //우 
+			flag = flag | Fitness_BFS(path, scorestr, i, j+1, idx+1);
+		if (!flag && (i>0 && j>0) && gene[i-1][j-1] == scorestr[idx]) //좌상 
+			flag = flag | Fitness_BFS(path, scorestr, i-1, j-1, idx+1);
+		if (!flag && (i>0 && j<C-1) && gene[i-1][j+1] == scorestr[idx]) //우상 
+			flag = flag | Fitness_BFS(path, scorestr, i-1, j+1, idx+1);
+		if (!flag && (i<R-1 && j>0) && gene[i+1][j-1] == scorestr[idx]) //좌하 
+			flag = flag | Fitness_BFS(path, scorestr, i+1, j-1, idx+1);
+		if (!flag && (i<R-1 && j<C-1) && gene[i+1][j+1] == scorestr[idx]) //우하 
+			flag = flag | Fitness_BFS(path, scorestr, i+1, j+1, idx+1);
+
+        if (flag == 0)
+            path->pop_back();
 		return (flag);
 	}
 	
 	void output(ostream& out) {
-		out << "Fitness: " << Fitness() << "\n";
+		Fitness();
+		out << "Fitness: " << this->fitness << " / score: " << this->fitscore << "\n";
 		for(int i=0; i<R; i++)
 			out << gene[i] << "\n";
 		out << "\n";
@@ -185,7 +205,7 @@ int selectNum(string s[], int i, int j) {
 			if (i==0 || i==R-1 || j==0 || j==C-1)
 				rv = genRandom(0);
 			else
-				rv = genRandom(700); //상한선 설정
+				rv = genRandom(600); //상한선 설정
 		}
 		else if (flag >= 4) //num과 같은숫자가 주변에 과도하게 많다면 선택되지 않도록
 			rv = genRandom(0);
@@ -235,7 +255,7 @@ int selectNum(string s[], int i, int j) {
 // } 
 
 void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) {
-	int mp = 1; //mp% 확률로 돌연변이
+	int mp = 16; //mp% 확률로 돌연변이
 
 	//pi 부모와 pj 부모의 조합으로 crossover
 	for(int pi=0; pi<parent->size()-1; pi++) {
@@ -251,7 +271,7 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 					
 					// Mutation
 					for(int j=0; j<C; j++) {
-						int rv = genRandom(100);
+						int rv = genRandom(1000);
 						if (rv <= mp) {
 							int sn = selectNum(pb.gene, i, j);
 							pb.gene[i][j] = (char)(sn+48);
@@ -274,7 +294,7 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 							pb.gene[i].push_back((*parent)[pj].gene[i][j]);
 						
 						//Mutation
-						int rv = genRandom(100);
+						int rv = genRandom(1000);
 						if (rv <= mp) {
 							int sn = selectNum(pb.gene, i, j);
 							pb.gene[i][j] = (char)(sn+48);
@@ -308,7 +328,7 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 	// 1. 초기해 (bestsol, bestsol2)
 	vector<Solution> cursv;
-	int randomSize = 1;
+	int randomSize = 3;
 	for(int i=0; i<PSIZE-randomSize; i++)
 		cursv.push_back(bestsol[i]);
 	// 1-1. 초기해 랜덤
@@ -324,7 +344,8 @@ int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 		// 2. 우수한 개체를 다음 세대의 부모로 선택
 		vector<Solution> parent = selectExcellentParent(&cursv, bssize);
 		
-		cout << ti << " - GEN" << gi << ": " << parent[0].Fitness() << " / " << bestsol[0].Fitness() << endl; //debug : 현재 세대 Fitness
+		cout << ti << " - GEN" << gi << ": " << parent[0].Fitness() << "(" << parent[0].fitscore << ") /";
+		cout << bestsol[0].Fitness() << "(" << bestsol[0].fitscore << ")" << endl; //debug : 현재 세대 Fitness
 
 		// 3. Cross over : 두 부모로 새로운 자식 염색체 생성
 		cursv.clear(); //기존 자식 삭제
@@ -356,14 +377,14 @@ int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 
 
 int main() {
-	int testcase = 5;
+	int testcase = 25;
 	int ti = 0;
 	while (ti < testcase) {
 		cout << "========= testcase " << ti << "=========" << endl;
 
-		int generation = 4000; // generation LOOP
+		int generation = 500; // generation LOOP
 		int genes = 100; //number of gene
-		int bestsolsize = 2;
+		int bestsolsize = PSIZE;
 
 		//임시 검증
 	//	string tmp[R];
