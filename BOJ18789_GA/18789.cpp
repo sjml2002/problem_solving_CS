@@ -4,6 +4,7 @@
 # define PSIZE 3 //부모의 총 개수
 # define MAXNUM 8140
 using namespace std;
+typedef long long int ll;
 
 /**
  * 랜덤 값 생성
@@ -158,13 +159,55 @@ void updateBest(vector<Solution>& bestsol, const vector<Solution>& cursv) {
 /**
  * Selection
  * 우수한 개체를 다음 세대의 부모를 선택
+ * 1. Rank-Based Selection
 */
 vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize) {
 	sort(cursv->begin(), cursv->end(), sortcmp);
 
+	// 1. Rank-Based Selection
+	int maxf = (*cursv)[0].Fitness();
+	int minf = cursv->back().Fitness();
+
+	int sumf = 0;
+	int elitesumf = 0;
+	vector<pair<int, int>> RankFitness; //<originIndex, RankFitness>
+	int csize = cursv->size();
+	for(int i=0; i<cursv->size(); i++) {
+		int f = maxf + (i*(minf-maxf) / (csize-1));
+		RankFitness.push_back(make_pair(i, f));
+		sumf += f;
+		if (i < 5)
+			elitesumf += f;
+	}
+
 	vector<Solution> nextParent;
+	ll precision = 100000;
+	/**
+	 *  1-1. selection with Probability
+	 * 		(using Roulette Wheel)
+	 * 		but, the first parent is Elite(top5 in cursv)
+	*/
+	//		
 	for(int i=0; i<PSIZE; i++) {
-		nextParent.push_back((*cursv)[i]);
+		ll rwp = genRandom(sumf);
+		if (i <= 0) //number of Elite
+			rwp = genRandom(elitesumf);
+
+		ll sump = 0;
+		int ri=0;
+		while(ri < RankFitness.size()) {
+			int f = RankFitness[i].second;
+			ll fp = (ll)f*precision;
+			int p = fp / (ll)sumf;
+
+			sump += p;
+			if (sump >= rwp)
+				break ;
+			ri++;
+		}
+		cout << "Selection: " << ri << "\n"; //debug
+		nextParent.push_back((*cursv)[ri]);
+		RankFitness.erase(RankFitness.begin() + ri);
 	}
 	return (nextParent);
 }
@@ -328,7 +371,7 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 	// 1. 초기해 (bestsol, bestsol2)
 	vector<Solution> cursv;
-	int randomSize = 1;
+	int randomSize = 2;
 	for(int i=0; i<PSIZE-randomSize; i++)
 		cursv.push_back(bestsol[i]);
 	// 1-1. 초기해 랜덤
@@ -380,11 +423,12 @@ int main() {
 	int testcase = 25;
 	int ti = 0;
 	while (ti < testcase) {
+		bestsol.clear();
 		cout << "========= testcase " << ti << "=========" << endl;
 
-		int generation = 4000; // generation LOOP
+		int generation = 1000; // generation LOOP
 		int genes = 100; //number of gene
-		int bestsolsize = 2;
+		int bestsolsize = PSIZE;
 
 		//임시 검증
 	//	string tmp[R];
