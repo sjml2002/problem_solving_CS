@@ -190,7 +190,7 @@ vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize) {
 	//		
 	for(int i=0; i<PSIZE; i++) {
 		ll rwp = genRandom(sumf);
-		if (i <= 0) //number of Elite
+		if (i < 2) //number of Elite
 			rwp = genRandom(elitesumf);
 
 		ll sump = 0;
