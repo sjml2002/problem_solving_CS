@@ -428,7 +428,7 @@ int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 
 
 int main() {
-	int testcase = 25;
+	int testcase = 40;
 	int ti = 0;
 	while (ti < testcase) {
 		bestsol.clear();
