@@ -144,14 +144,6 @@ public:
         }
         out << "------------------------\n";
 
-        out << "use count=0, each score\n";
-        for(int score=1; score<=MAXNUM; score++) {
-            if (possibleRepresent[score].size() == 0) {
-                out << score << ": " << possibleRepresent[score].size() << "\n";
-            }
-        }
-        out << "------------------------\n";
-
         out << "use count=1 (unique), each score\n";
         int uniqueCnt = 0;
         for(int score=1; score<=MAXNUM; score++) {

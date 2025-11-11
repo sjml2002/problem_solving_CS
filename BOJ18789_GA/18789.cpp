@@ -64,7 +64,9 @@ public:
 			return (this->fitness);
 		
 		int score = 1;
-		while (1) {
+		int fitscoreflag = 0;
+		int totalscore = 0;
+		while (score <= MAXNUM) {
 			string scorestr = to_string(score);
 			int flag = 0;
 			for(int i=0; i<R; i++) {
@@ -83,13 +85,19 @@ public:
 			if (possibleRepresent[score].size() == 1)
 				uniquePathCnt++;
 			
-			if (!flag) //score을 찾지 못했음 
-				break ;
+			if (!flag) { //score을 찾지 못했음 
+				if (!fitscoreflag) { //Solution의 fitscore update
+					this->fitscore = score-1;
+					fitscoreflag = 1;
+				}
+			}
+			else {
+				totalscore++;
+			}
 			score++;
 		}
 
-		this->fitscore = score-1;
-		this->fitness = score-1 - (upc * uniquePathCnt);
+		this->fitness = totalscore - (upc * uniquePathCnt);
 		return (this->fitness);
 	}
 	
@@ -181,7 +189,7 @@ vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize) {
 	}
 
 	vector<Solution> nextParent;
-	ll precision = 100000;
+	ll precision = 1000000;
 	/**
 	 *  1-1. selection with Probability
 	 * 		(using Roulette Wheel)
@@ -190,7 +198,7 @@ vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize) {
 	//		
 	for(int i=0; i<PSIZE; i++) {
 		ll rwp = genRandom(sumf);
-		if (i <= 0) //number of Elite
+		if (i <= 1) //number of Elite
 			rwp = genRandom(elitesumf);
 
 		ll sump = 0;
@@ -426,7 +434,7 @@ int main() {
 		bestsol.clear();
 		cout << "========= testcase " << ti << "=========" << endl;
 
-		int generation = 1000; // generation LOOP
+		int generation = 100; // generation LOOP
 		int genes = 100; //number of gene
 		int bestsolsize = PSIZE;
 
@@ -460,7 +468,7 @@ int main() {
 			bestsol[i].output(cout); //debug
 		}
 		ifs.close();
-		
+
 		int res = GeneticAlgorithm(ti, generation, genes, bestsolsize);
 
 		// write best solution in "best.txt"
