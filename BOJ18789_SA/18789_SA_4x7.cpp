@@ -1,7 +1,7 @@
 #include "libct.h"
 # define R 4
 # define C 7
-# define MAXNUM 8140
+# define MAXNUM 2100
 # define PSIZE 2
 using namespace std;
 typedef long long int ll;
