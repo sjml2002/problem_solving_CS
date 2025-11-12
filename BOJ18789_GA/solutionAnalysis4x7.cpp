@@ -1,7 +1,7 @@
 #include "libct.h"
 # define R 4
 # define C 7
-# define MAXNUM 100
+# define MAXNUM 8140
 using namespace std;
 
 /**

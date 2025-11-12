@@ -1,8 +1,8 @@
 #include "libct.h"
-# define R 8
-# define C 14
-# define PSIZE 3 //부모의 총 개수
-# define MAXNUM 8140
+# define R 4
+# define C 7
+# define MAXNUM 2100
+# define PSIZE 2
 using namespace std;
 typedef long long int ll;
 
@@ -22,7 +22,7 @@ int genRandom(int end) {
 
 
 /*
-	유전 알고리즘으로 풀어보자. 
+	Simulated Annealing
 */
 class Solution {
 public:
@@ -31,7 +31,7 @@ public:
 	int fitscore = -1;
 	set<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
 	int uniquePathCnt = 0;
-	double upc = 0.3;
+	double upc = 0.5;
 
 	Solution() {}
 	Solution(string tmp[]) {
@@ -147,8 +147,8 @@ int sortcmp(Solution& s1, Solution& s2) {
 }
 
 vector<Solution> bestsol;
-/**
- * best sol은 업데이트 함
+/*
+ * best sol 업데이트
  */
 void updateBest(vector<Solution>& bestsol, const vector<Solution>& cursv) {
     int bssize = bestsol.size();
@@ -164,61 +164,6 @@ void updateBest(vector<Solution>& bestsol, const vector<Solution>& cursv) {
 }
 
 
-/**
- * Selection
- * 우수한 개체를 다음 세대의 부모를 선택
- * 1. Rank-Based Selection
-*/
-vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize) {
-	sort(cursv->begin(), cursv->end(), sortcmp);
-
-	// 1. Rank-Based Selection
-	int maxf = (*cursv)[0].Fitness();
-	int minf = cursv->back().Fitness();
-
-	int sumf = 0;
-	int elitesumf = 0;
-	vector<pair<int, int>> RankFitness; //<originIndex, RankFitness>
-	int csize = cursv->size();
-	for(int i=0; i<cursv->size(); i++) {
-		int f = maxf + (i*(minf-maxf) / (csize-1));
-		RankFitness.push_back(make_pair(i, f));
-		sumf += f;
-		if (i < 5)
-			elitesumf += f;
-	}
-
-	vector<Solution> nextParent;
-	ll precision = 1000000;
-	/**
-	 *  1-1. selection with Probability
-	 * 		(using Roulette Wheel)
-	 * 		but, the first parent is Elite(top5 in cursv)
-	*/
-	//		
-	for(int i=0; i<PSIZE; i++) {
-		ll rwp = genRandom(sumf);
-		if (i <= 1) //number of Elite
-			rwp = genRandom(elitesumf);
-
-		ll sump = 0;
-		int ri=0;
-		while(ri < RankFitness.size()) {
-			int f = RankFitness[i].second;
-			ll fp = (ll)f*precision;
-			int p = fp / (ll)sumf;
-
-			sump += p;
-			if (sump >= rwp)
-				break ;
-			ri++;
-		}
-		cout << "Selection: " << ri << "\n"; //debug
-		nextParent.push_back((*cursv)[ri]);
-		RankFitness.erase(RankFitness.begin() + ri);
-	}
-	return (nextParent);
-}
 
 
 /**
@@ -231,7 +176,7 @@ int selectNum(string s[], int i, int j) {
 	int maxnum = 0;
 	for(int num=0; num<10; num++) {
 		char numstr = (char)(num+48);
-		int flag = 0;
+		int flag = 0; //flag는 현재 numstr이 주변에 얼마나 있는지에 대한 count
 		if (i>0 && s[i-1][j] == numstr) //상 
 			flag++;
 		if (i<R-1 && s[i+1][j] == numstr) //하 
@@ -256,14 +201,14 @@ int selectNum(string s[], int i, int j) {
 			if (i==0 || i==R-1 || j==0 || j==C-1)
 				rv = genRandom(0);
 			else
-				rv = genRandom(600); //상한선 설정
+				rv = genRandom(700); //상한선 설정
 		}
 		else if (flag >= 4) //num과 같은숫자가 주변에 과도하게 많다면 선택되지 않도록
 			rv = genRandom(0);
 		else if (flag == 0) //num과 같은 숫자가 주변에 하나도 없다면 선택할 확률 매우 높임
 			rv = genRandom(1000);
 		else //flag가 적을수록 선택될 확률을 높임
-			rv = genRandom(1000/flag); //flag=2 : 500 , flag=3 : 333
+			rv = genRandom(1000/flag + 100); //flag=2 : 500 , flag=3 : 333
 		
 		if (rv > maxv) {
 			maxv = rv;
@@ -274,114 +219,37 @@ int selectNum(string s[], int i, int j) {
 }
 
 
+
 /**
-	CrossOver
+ * 기존 solution을 가지고 이웃해 생성
+ * 바꿀 Row와 Column을 randomly하게 선택하게 하고 그 수를 selectNum으로 선택
+ * @param{sol} : 기존 solution
+ */
 
-	- 부모로 자식 생성 (돌연변이 포함)
-	생성한 자식은 dest에 할당하기
-	=> Adjacency Preserving Crossover 비슷하게
+Solution generateNeibor(Solution* sol) {
+	Solution neighbor(sol->gene);
+	int r = genRandom(R-1);
+	int c = genRandom(C-1);
 
-	1. 현재 숫자는 주변 8개의 숫자랑 다를 수록 확률이 높아짐.
-		0~9까지 숫자에서 상한선을 정해서 랜덤값 생성한 다음에 가장 높은거 선택 ㄱㄱ 
-	1-1. 단 자신과 같다면 상한선 조금 높게 
-		=> Failed. 200 이상 넘지가 않는다.
-
-	2. 현재 최상의 부모에서 하나만 선택해서 변경
-		=> Failed. 2300 점을 넘지 않음.
-		=> 그리고 애초에 cross over가 아님.
-	
-	3. 최상의 2개의 부모에서 One-point crosover
-	3-1. (TODO 251011) 지금 child가 parent.size()*20 만큼 생겨나니까
-		상한선 genes로 두고 sort하던지 하는거 해야할듯
-	3-2. 계속 같은 자식을 생성하기 때문에 Fitness가 동일한거는 제외해야할듯
-*/
-
-// //dest안의 Solution과 중복인 cur이 존재하는지
-// int findsameFitness(vector<Solution>* dest, Solution* cur) {
-// 	for(int i=0; i<dest->size(); i++) {
-// 		if ((*dest)[i].Fitness() == cur->Fitness())
-// 			return (1);
-// 	}
-// 	return (0);
-// } 
-
-void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) {
-	int mp = 16; //mp% 확률로 돌연변이
-
-	//pi 부모와 pj 부모의 조합으로 crossover
-	for(int pi=0; pi<parent->size()-1; pi++) {
-		for(int pj=pi+1; pj<parent->size(); pj++) {
-			// 3-1. Row based one-point crossover
-			for(int ci=1; ci<R; ci++) { //ci 미만의 행은 parent[0] 에게서, ci 이상의 행은 parent[1] 에게서
-				Solution pb;
-				for(int i=0; i<R; i++) {
-					if (i < ci)
-						pb.gene[i] = (*parent)[pi].gene[i];
-					else
-						pb.gene[i] = (*parent)[pj].gene[i];
-					
-					// Mutation
-					for(int j=0; j<C; j++) {
-						int rv = genRandom(1000);
-						if (rv <= mp) {
-							int sn = selectNum(pb.gene, i, j);
-							pb.gene[i][j] = (char)(sn+48);
-						}
-					}
-				}
-				//if (!findsameFitness(dest, &pb)) //pb가 중복인지 확인
-					dest->push_back(pb);
-			}
-			
-			// 3-2. Column based one-point crossover
-			for(int cj=1; cj<C; cj++) { //cj 미만의 열은 parent[0] 에게서, cj 이상의 열은 parent[1] 에게서
-				Solution pb;
-				for(int j=0; j<C; j++) {
-					//열 복사하려면 for문 한번 더 돌아야됨.
-					for(int i=0; i<R; i++) {
-						if (j < cj)
-							pb.gene[i].push_back((*parent)[pi].gene[i][j]);
-						else
-							pb.gene[i].push_back((*parent)[pj].gene[i][j]);
-						
-						//Mutation
-						int rv = genRandom(1000);
-						if (rv <= mp) {
-							int sn = selectNum(pb.gene, i, j);
-							pb.gene[i][j] = (char)(sn+48);
-						}
-					}
-				}
-				//if (!findsameFitness(dest, &pb)) //pb가 중복인지 확인
-					dest->push_back(pb);
-			}
-		}
-	}
-
-	// //dest의 개수를 상위 genes로 줄이기
-	// if (dest->size() > genes) {
-	// 	sort(dest->begin(), dest->end(), sortcmp);
-	// 	dest->resize(genes);
-	// }
-	// else if (dest->size() < genes) { //기존의 부모들로 dest의 개수를 genes로 채우기
-	// 	int pi = 0;
-	// 	for(int gi=dest->size(); gi < genes; gi++) {
-	// 		dest->push_back((*parent)[pi++]);
-	// 	}
-	// }
+	char newnum = (char)(selectNum(neighbor.gene, r, c) + 48);
+	neighbor.gene[r][c] = newnum;
+	return (neighbor);
 }
+
+
 
 /**
  * @param{generation} : 세대 수 (Loop 수)
  * @param{genes} : 1세대 당 유전자의 수 
  * @return : 최고 점수 
 */
-int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
-	// 1. 초기해 (bestsol, bestsol2)
+int SimulatedAnnealing(int ti) {
+	// 1. 초기해 (bestsol)
 	vector<Solution> cursv;
-	int randomSize = 2;
-	for(int i=0; i<PSIZE-randomSize; i++)
+	int randomSize = 0;
+	for(int i=0; i<PSIZE-randomSize; i++) {
 		cursv.push_back(bestsol[i]);
+	}
 	// 1-1. 초기해 랜덤
 	for(int i=0; i<randomSize; i++) {
 		Solution tmp;
@@ -389,64 +257,56 @@ int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 		cursv.push_back(tmp);
 	}
 
+    double selectp = 0.8; //selectp보다 p가 높으면 선택함.
+	double r = 0.99; //냉각률
+	double T = 100000; //온도
+	double limit = 0.00000001;
 
 	int gi = 0;
-	while (gi < generation) {
-		// 2. 우수한 개체를 다음 세대의 부모로 선택
-		vector<Solution> parent = selectExcellentParent(&cursv, bssize);
+	while (T > limit) {
+		// 2. 이웃해 생성
+		for(int i=0; i<cursv.size(); i++) {
+			Solution neighbor = generateNeibor(&cursv[i]);
+
+			/* neighbor 이 더 크다면 costdiff >= 1 이 되고 p는 1 이상이 되어서 무조건 선택
+				neighbor이 더 작다면 costdiff < 1 이 되고 p는 0~1  사이 값
+					=> 온도에 따라서 선택하게 됨. (온도 ↑, p ↑)
+			*/
+			double costdiff = neighbor.Fitness() - cursv[i].Fitness();
+			double p = exp(costdiff / T);
+
+			if (p >= selectp) //2-1. 이웃해 채택
+				cursv[i] = neighbor;
+		}
 		
-		cout << ti << " - GEN" << gi << ": " << parent[0].Fitness() << "(" << parent[0].fitscore << ") /";
-		cout << bestsol[0].Fitness() << "(" << bestsol[0].fitscore << ")" << endl; //debug : 현재 세대 Fitness
+		if (gi % 10 == 0) {
+			cout << ti << " - SA" << gi << " T: " << T << " => " << cursv[0].Fitness() << "(" << cursv[0].fitscore << ") / ";
+			cout << bestsol[0].Fitness() << "(" << bestsol[0].fitscore << ")" << endl; //debug : 현재 세대 Fitness
+		}
 
-		// 3. Cross over : 두 부모로 새로운 자식 염색체 생성
-		cursv.clear(); //기존 자식 삭제
-		generateChild(&cursv, &parent, genes);
-
-		// 3-1. best Solution 판단
+		// 3. best Solution 판단
 		updateBest(bestsol, cursv);
 		gi++;
+		T = r*T;
 	}
 	//마지막 한번 더
 	updateBest(bestsol, cursv); // best Solution 판단
-	/** 
-		만약, best.txt에 기록되는 해를 더 늘리고 싶다면
-		현재 bestsol.size() 인덱스의 cursv를 넣으면 됨. 	
-	**/ 
-	//bestsol.push_back(cursv[0]);
-	
-	//이번 프로그램에서 가장 좋았던 5개 출력
-	// (TODO 251011) 해의 동일성 및 Fitness 수렴도
-	sort(cursv.begin(), cursv.end(), sortcmp);
-	cout << endl << "RESULT" << endl; //debug
-	for(int i=0; i<5; i++) {
-		cout << i << ": ";
-		cursv[i].output(cout);
-	}
 	
 	return (0);
 }
 
 
 int main() {
-	int testcase = 40;
+	int testcase = 25;
 	int ti = 0;
 	while (ti < testcase) {
 		bestsol.clear();
 		cout << "========= testcase " << ti << "=========" << endl;
 
-		int generation = 100; // generation LOOP
-		int genes = 100; //number of gene
 		int bestsolsize = PSIZE;
 
-		//임시 검증
-	//	string tmp[R];
-	//	for(int i=0; i<R; i++)
-	//		cin >> tmp[i];
-	//	Solution tmpsol = Solution(tmp);
-	//	tmpsol.output(cout);
-
 		// 0. init bestsol (Prev GA's best)
-		ifstream ifs("./best.txt");
+		ifstream ifs("./best4x7.txt");
 		if (!ifs.is_open()) {
 			cout << "Error opening file" << endl;
 			return (1);
@@ -468,11 +328,11 @@ int main() {
 			bestsol[i].output(cout); //debug
 		}
 		ifs.close();
-
-		int res = GeneticAlgorithm(ti, generation, genes, bestsolsize);
+		
+		int res = SimulatedAnnealing(ti);
 
 		// write best solution in "best.txt"
-		ofstream ofs("./best.txt");
+		ofstream ofs("./best4x7.txt");
 		if (ofs.is_open()) {
 			/** 만약 best.txt에 기록되는 해를 늘리고 싶다면 bestsol.size()로 바꾸기 */
 			// for(int i=0; i<bestsolsize; i++) {
