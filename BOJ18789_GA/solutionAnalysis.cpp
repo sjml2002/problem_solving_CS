@@ -105,9 +105,12 @@ public:
             if (possibleRepresent[score].size() == 1) {
                 //path 은 score에서 unique한 path임.
                 for(auto path=possibleRepresent[score].begin(); path != possibleRepresent[score].end(); path++) {
-                    int y = (*path)[0].first;
-                    int x = (*path)[0].second;
-                    visUniquePath[y][x]++;
+                    //output path
+                    for(int i=0; i<path->size(); i++)  {
+                        int y = (*path)[i].first;
+                        int x = (*path)[i].second;
+                        visUniquePath[y][x]++;
+                    }
                 }
             }
         }

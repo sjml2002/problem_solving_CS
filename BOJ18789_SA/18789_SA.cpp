@@ -30,8 +30,9 @@ public:
 	int fitness = -1;
 	int fitscore = -1;
 	set<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
+	int visUniquePath[R][C]; // [i][j] 가 uniquePath에 사용되었는지
 	int uniquePathCnt = 0;
-	double upc = 0.3;
+	double upc = 0.5;
 
 	Solution() {}
 	Solution(string tmp[]) {
@@ -82,8 +83,17 @@ public:
 				}
 			}
 			
-			if (possibleRepresent[score].size() == 1)
-				uniquePathCnt++;
+			if (possibleRepresent[score].size() == 1) {
+				//path 은 score에서 unique한 path임.
+                for(auto path=possibleRepresent[score].begin(); path != possibleRepresent[score].end(); path++) {
+                    //output path
+                    for(int i=0; i<path->size(); i++)  {
+                        int y = (*path)[i].first;
+                        int x = (*path)[i].second;
+                        visUniquePath[y][x]++;
+                    }
+                }
+			}
 			
 			if (!flag) { //score을 찾지 못했음 
 				if (!fitscoreflag) { //Solution의 fitscore update
@@ -97,6 +107,13 @@ public:
 			score++;
 		}
 
+		//uniquepath Cnt 계산
+		for(int i=0; i<R; i++) {
+			for(int j=0; j<C; j++) {
+				if (visUniquePath[i][j] > 0)
+					uniquePathCnt++;
+			}
+		}
 		this->fitness = totalscore - (upc * uniquePathCnt);
 		return (this->fitness);
 	}
