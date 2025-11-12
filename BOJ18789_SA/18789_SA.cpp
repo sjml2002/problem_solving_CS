@@ -277,7 +277,7 @@ int SimulatedAnnealing(int ti) {
     double selectp = 0.8; //selectp보다 p가 높으면 선택함.
 	double r = 0.99; //냉각률
 	double T = 100000; //온도
-	double limit = 0.00000001;
+	double limit = 0.000000001;
 
 	int gi = 0;
 	while (T > limit) {
@@ -314,7 +314,7 @@ int SimulatedAnnealing(int ti) {
 
 
 int main() {
-	int testcase = 25;
+	int testcase = 80;
 	int ti = 0;
 	while (ti < testcase) {
 		bestsol.clear();
