@@ -32,7 +32,7 @@ public:
 	set<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
 	int visUniquePath[R][C]; // [i][j] 가 uniquePath에 사용되었는지
 	int uniquePathCnt = 0;
-	double upc = 0.5;
+	double upc = 5;
 
 	Solution() {}
 	Solution(string tmp[]) {
@@ -263,7 +263,7 @@ Solution generateNeibor(Solution* sol) {
 int SimulatedAnnealing(int ti) {
 	// 1. 초기해 (bestsol)
 	vector<Solution> cursv;
-	int randomSize = 0;
+	int randomSize = 1;
 	for(int i=0; i<PSIZE-randomSize; i++) {
 		cursv.push_back(bestsol[i]);
 	}
