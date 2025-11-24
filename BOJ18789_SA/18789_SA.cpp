@@ -32,12 +32,24 @@ public:
 	set<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
 	int visUniquePath[R][C]; // [i][j] 가 uniquePath에 사용되었는지
 	int uniquePathCnt = 0;
-	double upc = 5;
+	double upc = 3; //uniquePath인 격자의 수 (의 가중치)
+	double supc = 0.3; //uniquePath 자체 총 개수 (의 가중치)
 
-	Solution() {}
+	Solution() {
+		for(int i=0; i<R; i++) {
+			for(int j=0; j<C; j++) {
+				visUniquePath[i][j] = 0;
+			}
+		}
+	}
 	Solution(string tmp[]) {
 		for(int i=0; i<R; i++)
 			gene[i] = tmp[i];
+		for(int i=0; i<R; i++) {
+			for(int j=0; j<C; j++) {
+				visUniquePath[i][j] = 0;
+			}
+		}
 	}
 
 	
@@ -108,13 +120,16 @@ public:
 		}
 
 		//uniquepath Cnt 계산
+		int sumupc = 0;
 		for(int i=0; i<R; i++) {
 			for(int j=0; j<C; j++) {
-				if (visUniquePath[i][j] > 0)
+				if (visUniquePath[i][j] > 0) {
 					uniquePathCnt++;
+					sumupc += visUniquePath[i][j];
+				}
 			}
 		}
-		this->fitness = totalscore - (upc * uniquePathCnt);
+		this->fitness = totalscore - (upc * uniquePathCnt) - (supc * sumupc);
 		return (this->fitness);
 	}
 	
