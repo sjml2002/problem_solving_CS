@@ -107,11 +107,17 @@ public:
 			score++;
 		}
 
-		//uniquepath Cnt 계산
+		/* uniquepath Cnt 계산
+			- uniquePath가 끝 위치일 때는 별로 상관이 없으니 + 1 이지만\
+			중간에 있을 경우 꽤 많이 영향을 받으므로 += 2 */
 		for(int i=0; i<R; i++) {
 			for(int j=0; j<C; j++) {
-				if (visUniquePath[i][j] > 0)
-					uniquePathCnt++;
+				if (visUniquePath[i][j] > 0) {
+					if (i==0 || i==R-1 || j==0 || j==C-1)
+						uniquePathCnt++;
+					else
+						uniquePathCnt += 2;
+				}
 			}
 		}
 		this->fitness = totalscore - (upc * uniquePathCnt);
@@ -347,7 +353,7 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 					}
 				}
 				//if (!findsameFitness(dest, &pb)) //pb가 중복인지 확인
-					dest->push_back(pb);
+				dest->push_back(pb);
 			}
 			
 			// 3-2. Column based one-point crossover
@@ -370,7 +376,7 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 					}
 				}
 				//if (!findsameFitness(dest, &pb)) //pb가 중복인지 확인
-					dest->push_back(pb);
+				dest->push_back(pb);
 			}
 		}
 	}
