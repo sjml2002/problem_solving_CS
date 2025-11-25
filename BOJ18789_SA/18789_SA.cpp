@@ -110,6 +110,7 @@ public:
 		/* uniquepath Cnt 계산
 			- uniquePath가 끝 위치일 때는 별로 상관이 없으니 + 1 이지만\
 			중간에 있을 경우 꽤 많이 영향을 받으므로 += 2 */
+		uniquePathCnt = 0;
 		for(int i=0; i<R; i++) {
 			for(int j=0; j<C; j++) {
 				if (visUniquePath[i][j] > 0) {
@@ -245,18 +246,56 @@ int selectNum(string s[], int i, int j) {
 
 /**
  * 기존 solution을 가지고 이웃해 생성
- * 바꿀 Row와 Column을 randomly하게 선택하게 하고 그 수를 selectNum으로 선택
+ * 1. 전체를 탐색해서 특정 확률로 원소를 변경하는 solution 1개와
+ * 2. 기존 solution에서 특정확률에 의해 인접한 자리를 바꾸는 solution 중 더 높은거 채택
  * @param{sol} : 기존 solution
  */
 
 Solution generateNeibor(Solution* sol) {
-	Solution neighbor(sol->gene);
-	int r = genRandom(R-1);
-	int c = genRandom(C-1);
+	//1.
+	Solution neighbor1(sol->gene);
+	int selectp = 2; //selectp% 확률로 값을 바꿈
+	for(int r=0; r<R; r++) {
+		for(int c=0; c<C; c++) {
+			int p = genRandom(100);
+			if (p <= selectp) {
+				char newnum = (char)(selectNum(neighbor1.gene, r, c) + 48);
+				neighbor1.gene[r][c] = newnum;
+			}
 
-	char newnum = (char)(selectNum(neighbor.gene, r, c) + 48);
-	neighbor.gene[r][c] = newnum;
-	return (neighbor);
+			
+		}
+	}
+
+	//2.
+	Solution neighbor2(sol->gene);
+	selectp = 1; //selectp% 확률로 자리를 바꿈
+	for(int r=0; r<R; r++) {
+		for(int c=0; c<C; c++) {
+			int p;
+			p = genRandom(100);
+			if (p <= selectp && r>0) //상
+				swap(neighbor2.gene[r][c], neighbor2.gene[r-1][c]);
+			else if (p <= selectp*2 && r<R-1) //하
+				swap(neighbor2.gene[r][c], neighbor2.gene[r+1][c]);
+			else if (p <= selectp*3 && c>0) //좌
+				swap(neighbor2.gene[r][c], neighbor2.gene[r][c-1]);
+			else if (p <= selectp*4 && c<C-1) //우
+				swap(neighbor2.gene[r][c], neighbor2.gene[r][c+1]);
+			else if (p <= selectp*5 && r>0 && c>0) //좌상
+				swap(neighbor2.gene[r][c], neighbor2.gene[r-1][c-1]);
+			else if (p <= selectp*6 && r<R-1 && c>0) //좌하
+				swap(neighbor2.gene[r][c], neighbor2.gene[r+1][c-1]);
+			else if (p <= selectp*7 && r>0 && c<C-1) //우상
+				swap(neighbor2.gene[r][c], neighbor2.gene[r-1][c+1]);
+			else if (p <= selectp*8 && r<R-1 && c<C-1) //우하
+				swap(neighbor2.gene[r][c], neighbor2.gene[r+1][c+1]);
+		}
+	}
+
+	if (neighbor1.Fitness() > neighbor2.Fitness())
+		return (neighbor1);
+	return (neighbor2);
 }
 
 
@@ -283,7 +322,7 @@ int SimulatedAnnealing(int ti) {
     double selectp = 0.8; //selectp보다 p가 높으면 선택함.
 	double r = 0.99; //냉각률
 	double T = 100000; //온도
-	double limit = 0.000000001;
+	double limit = 0.00000001;
 
 	int gi = 0;
 	while (T > limit) {
