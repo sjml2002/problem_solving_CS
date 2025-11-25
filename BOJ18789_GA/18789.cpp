@@ -32,12 +32,24 @@ public:
 	set<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
 	int visUniquePath[R][C]; // [i][j] 가 uniquePath에 사용되었는지
 	int uniquePathCnt = 0;
-	double upc = 5;
+	double upc = 3; //uniquePath인 격자의 수 (의 가중치)
+	double supc = 0.3; //uniquePath 자체 총 개수 (의 가중치)
 
-	Solution() {}
+	Solution() {
+		for(int i=0; i<R; i++) {
+			for(int j=0; j<C; j++) {
+				visUniquePath[i][j] = 0;
+			}
+		}
+	}
 	Solution(string tmp[]) {
 		for(int i=0; i<R; i++)
 			gene[i] = tmp[i];
+		for(int i=0; i<R; i++) {
+			for(int j=0; j<C; j++) {
+				visUniquePath[i][j] = 0;
+			}
+		}
 	}
 
 	
@@ -50,6 +62,7 @@ public:
 			}
 			gene[i] = tmp;
 		}
+		this->Fitness();
 	}
 
 	
@@ -107,20 +120,15 @@ public:
 			score++;
 		}
 
-		/* uniquepath Cnt 계산
-			- uniquePath가 끝 위치일 때는 별로 상관이 없으니 + 1 이지만\
-			중간에 있을 경우 꽤 많이 영향을 받으므로 += 2 */
+		//uniquepath Cnt 계산
+		int sumupc = 0;
 		for(int i=0; i<R; i++) {
 			for(int j=0; j<C; j++) {
-				if (visUniquePath[i][j] > 0) {
-					if (i==0 || i==R-1 || j==0 || j==C-1)
-						uniquePathCnt++;
-					else
-						uniquePathCnt += 2;
-				}
+				if (visUniquePath[i][j] > 0)
+					uniquePathCnt++;
 			}
 		}
-		this->fitness = totalscore - (upc * uniquePathCnt);
+		this->fitness = totalscore - (upc * uniquePathCnt) - (supc * sumupc);
 		return (this->fitness);
 	}
 	
@@ -402,7 +410,7 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 	// 1. 초기해 (bestsol, bestsol2)
 	vector<Solution> cursv;
-	int randomSize = 2;
+	int randomSize = 1;
 	for(int i=0; i<PSIZE-randomSize; i++)
 		cursv.push_back(bestsol[i]);
 	// 1-1. 초기해 랜덤
