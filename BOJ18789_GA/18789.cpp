@@ -2,9 +2,9 @@
 # define R 8
 # define C 14
 # define STARTNUM 1000
-# define MAXNUM 9999
+# define MAXNUM 8200
 # define PSIZE 2
-# define MAXSAME 25
+# define MAXSAME 15
 using namespace std;
 typedef long long int ll;
 
@@ -159,6 +159,7 @@ int sortcmp(Solution& s1, Solution& s2) {
 }
 
 vector<Solution> bestsol;
+Solution realbestsol; //기록용 bestsol
 /**
  * best sol은 업데이트 함
  */
@@ -184,6 +185,11 @@ void updateBest(vector<Solution>& bestsol, vector<Solution>& cursv) {
 	for(auto it=nextbs.begin(); it != nextbs.end(); it++) {
 		bestsol.push_back(it->second);
 	}
+
+	if (realbestsol.Fitness() < bestsol[0].Fitness())
+		realbestsol = bestsol[0];
+	else if (realbestsol.Fitness() == bestsol[0].Fitness() && realbestsol.fitscore < bestsol[0].fitscore)
+		realbestsol = bestsol[0];
 }
 
 
@@ -203,11 +209,17 @@ vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize) {
 	int elitesumf = 0;
 	vector<pair<int, int>> RankFitness; //<originIndex, RankFitness>
 	int csize = cursv->size();
+	//가장 bestsol 먼저 넣기
+	int tmpmaxf = bestsol[0].Fitness();
+	int f = tmpmaxf + (1*(minf-tmpmaxf) / (csize));
+	RankFitness.push_back(make_pair(1, f)); //bestsol의 index를 -1로 놓기
+	sumf += f;
+	elitesumf += f;
 	for(int i=0; i<cursv->size(); i++) {
-		int f = maxf + (i*(minf-maxf) / (csize-1));
-		RankFitness.push_back(make_pair(i, f));
+		int f = maxf + ((i+2)*(minf-maxf) / (csize-1));
+		RankFitness.push_back(make_pair(i+2, f));
 		sumf += f;
-		if (i < 5)
+		if (i < 3)
 			elitesumf += f;
 	}
 
@@ -221,11 +233,11 @@ vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize) {
 	//		
 	for(int i=0; i<PSIZE; i++) {
 		ll rwp = genRandom(sumf);
-		if (i <= 1) //number of Elite
+		if (i < 1) //number of Elite
 			rwp = genRandom(elitesumf);
 
 		ll sump = 0;
-		int ri=0;
+		int ri = RankFitness[0].first;
 		while(ri < RankFitness.size()) {
 			int f = RankFitness[i].second;
 			ll fp = (ll)f*precision;
@@ -237,8 +249,12 @@ vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize) {
 			ri++;
 		}
 		cout << "Selection: " << ri << "\n"; //debug
-		nextParent.push_back((*cursv)[ri]);
-		RankFitness.erase(RankFitness.begin() + ri);
+		if (ri == 1)
+			nextParent.push_back(bestsol[0]);
+		else {
+			nextParent.push_back((*cursv)[ri-2]);
+		}
+		RankFitness.erase(RankFitness.begin() + ri - 1);
 	}
 	return (nextParent);
 }
@@ -386,25 +402,18 @@ int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 		vector<Solution> parent = selectExcellentParent(&cursv, bssize);
 
 		cout << ti << " - GEN" << gi << ": " << parent[0].Fitness() << "(" << parent[0].fitscore << ") /";
-		cout << bestsol[0].Fitness() << "(" << bestsol[0].fitscore << ")" << endl; //debug : 현재 세대 Fitness
+		cout << bestsol[0].Fitness() << "(" << bestsol[0].fitscore << ") /"; //debug : 현재 세대 Fitness
+		cout << realbestsol.Fitness() << "(" << realbestsol.fitscore << ")\n"; //debug : 현재 세대 Fitness
 
 
 		// 3. Cross over : 두 부모로 새로운 자식 염색체 생성
 		cursv.clear(); //기존 자식 삭제
 		generateChild(&cursv, &parent, genes);
 
-		// 3-1. best Solution 판단
-		updateBest(bestsol, cursv);
-
-		if (bestsol[0].fitscore >= 8140) {
-			return (1);
-		}
-
-
-		// 4. 같은 해 반복 판별
+		// 4. 같은해 반복 시 permutation 진행
 		if (samebest.first == bestsol[0].Fitness()) {
 			samebest.second++;
-			if (samebest.second >= MAXSAME) { //permutation
+			if (samebest.second >= MAXSAME) { //계속 반복 중이므로 permutation 진행
 				cout << "permutation!\n"; //debug
 				for(int i=0; i<bestsol.size(); i++) {
 					int a = 0;
@@ -415,12 +424,18 @@ int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 					}
 					permutation(a, b, bestsol[i]); //a와 b숫자의 모든 위치를 swap
 				}
-				sort(bestsol.begin(), bestsol.end(), sortcmp);
 				samebest = make_pair(bestsol[0].Fitness(), 0);
 			}
 		}
-		else { //0번으로 초기화
+		else
 			samebest = make_pair(bestsol[0].Fitness(), 0);
+		
+
+		// 5-1. best Solution 판단
+		updateBest(bestsol, cursv);
+
+		if (bestsol[0].fitscore >= 8140) {
+			return (1);
 		}
 
 		gi++;
@@ -439,7 +454,7 @@ int main() {
 		bestsol.clear();
 		cout << "========= testcase " << ti << "=========" << endl;
 
-		int generation = 1000; // generation LOOP
+		int generation = 150; // generation LOOP
 		int genes = 100; //number of gene
 		int bestsolsize = PSIZE;
 
@@ -466,12 +481,14 @@ int main() {
 			bestsol[i].output(cout); //debug
 		}
 		ifs.close();
+		realbestsol = bestsol[0];
 
 		int res = GeneticAlgorithm(ti, generation, genes, bestsolsize);
 
 		// write best solution in "best.txt"
 		ofstream ofs("./best.txt");
 		if (ofs.is_open()) {
+			realbestsol.output(ofs);
 			for(int i=0; i<bestsol.size(); i++) {
 				bestsol[i].output(ofs);
 			}
