@@ -1,7 +1,7 @@
 #include "libct.h"
 # define R 8
 # define C 14
-# define MAXNUM 8140
+# define MAXNUM 9999
 # define PSIZE 2
 using namespace std;
 typedef long long int ll;
@@ -32,8 +32,8 @@ public:
 	set<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
 	int visUniquePath[R][C]; // [i][j] 가 uniquePath에 사용되었는지
 	int uniquePathCnt = 0;
-	double upc = 3; //uniquePath인 격자의 수 (의 가중치)
-	double supc = 0.3; //uniquePath 자체 총 개수 (의 가중치)
+	double upc = 5; //uniquePath인 격자의 수 (의 가중치)
+	double supc = 0.1; //uniquePath 자체 총 개수 (의 가중치)
 
 	Solution() {
 		for(int i=0; i<R; i++) {
@@ -326,9 +326,10 @@ int SimulatedAnnealing(int ti) {
 	}
 
     double selectp = 0.8; //selectp보다 p가 높으면 선택함.
-	double r = 0.99; //냉각률
+	double r = 0.995; //냉각률
 	double T = 100000; //온도
-	double limit = 0.00000001;
+	double k = 1.252; //볼츠만 상수
+	double limit = 0.00001;
 
 	int gi = 0;
 	while (T > limit) {
@@ -341,7 +342,7 @@ int SimulatedAnnealing(int ti) {
 					=> 온도에 따라서 선택하게 됨. (온도 ↑, p ↑)
 			*/
 			double costdiff = neighbor.Fitness() - cursv[i].Fitness();
-			double p = exp(costdiff / T);
+			double p = exp(costdiff / (k*T));
 
 			if (p >= selectp) //2-1. 이웃해 채택
 				cursv[i] = neighbor;

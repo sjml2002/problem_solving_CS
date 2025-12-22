@@ -2,7 +2,7 @@
 # define R 8
 # define C 14
 # define PSIZE 3 //부모의 총 개수
-# define MAXNUM 8140
+# define MAXNUM 9999
 using namespace std;
 typedef long long int ll;
 
@@ -32,8 +32,8 @@ public:
 	set<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
 	int visUniquePath[R][C]; // [i][j] 가 uniquePath에 사용되었는지
 	int uniquePathCnt = 0;
-	double upc = 3; //uniquePath인 격자의 수 (의 가중치)
-	double supc = 0.3; //uniquePath 자체 총 개수 (의 가중치)
+	double upc = 10; //uniquePath인 격자의 수 (의 가중치)
+	double supc = 0.1; //uniquePath 자체 총 개수 (의 가중치)
 
 	Solution() {
 		for(int i=0; i<R; i++) {
@@ -77,7 +77,7 @@ public:
 		if (this->fitness != -1)
 			return (this->fitness);
 		
-		int score = 1;
+		int score = 1000;
 		int fitscoreflag = 0;
 		int totalscore = 0;
 		while (score <= MAXNUM) {
@@ -337,7 +337,7 @@ int selectNum(string s[], int i, int j) {
 // } 
 
 void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) {
-	int mp = 18; //mp% 확률로 돌연변이
+	int mp = 25; //mp% 확률로 돌연변이
 
 	//pi 부모와 pj 부모의 조합으로 crossover
 	for(int pi=0; pi<parent->size()-1; pi++) {
