@@ -2,9 +2,9 @@
 # define R 8
 # define C 14
 # define STARTNUM 1000
-# define MAXNUM 8200
+# define MAXNUM 9999
 # define PSIZE 2
-# define MAXSAME 15
+# define MAXSAME 30
 using namespace std;
 typedef long long int ll;
 
@@ -192,13 +192,65 @@ void updateBest(vector<Solution>& bestsol, vector<Solution>& cursv) {
 		realbestsol = bestsol[0];
 }
 
+/**
+ * 로지스틱 회귀 함수를 본떠서 만들기
+ * @param{repeat} 같은 해가 반복 중인 횟수
+ * @param{lowmp, highmp} 하한mp, 상한mp
+ * @param{alpha} alpha가 클수록 {x0_ratio} 이후 급격히 올라감
+ * 				(보통 6은 완만, 10은 평균, 14는 급격)
+ * @param{x0_ratio} 어느 지점부터 급격히 증가하는지 그 기준
+ */
+int calcMp(int repeat, int lowmp, int highmp, double alpha = 10.0, double x0_ratio = 2.0/3.0)
+{
+    const double x  = (MAXSAME > 0) ? (double)repeat / (double)MAXSAME : 0.0;
+    const double x0 = x0_ratio;
+
+    auto sigmoid = [&](double t) {
+        return 1.0 / (1.0 + std::exp(-alpha * (t - x0)));
+    };
+
+    const double s  = sigmoid(x);
+    const double s0 = sigmoid(0.0);
+    const double s1 = sigmoid(1.0);
+
+    const double sn = (s - s0) / (s1 - s0); //sn은 0 ~ 1  사이 값
+    return (lowmp + (highmp - lowmp) * sn);
+}
+
+/**
+ * 수 0 <= a,b < 10 에 해당하는 모든 위치를 바꾸기
+ * Fitness계산을 무조건 해줘야합니다...
+ * @param{a, b}
+ * @param{sol} : 바꿀 대상 Solution
+ */
+void permutation(int a, int b, Solution& sol) {
+	char ca = (char)a + 48;
+	char cb = (char)b + 48;
+
+	int swapp = 50; //swapp% 확률로 swap
+
+	for(int r=0; r<R; r++) {
+		for(int c=0; c<C; c++) {
+			int tmpp = genRandom(100);
+			if (sol.gene[r][c] == ca && swapp >= tmpp)
+				sol.gene[r][c] = cb;
+			else if (sol.gene[r][c] == cb && swapp >= tmpp)
+				sol.gene[r][c] = ca;
+		}
+	}
+
+	//Fitness 재 계산
+	sol.fitness = -1;
+	sol.Fitness();
+}
+
 
 /**
  * Selection
  * 우수한 개체를 다음 세대의 부모를 선택
  * 1. Rank-Based Selection
 */
-vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize) {
+vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize, int repeat) {
 	if (cursv->size() == 1) { //cursv->size == 1이면 나중에 나눗셈에서 에러 걸리므로 예외처리
 		vector<Solution> nextParent;
 		nextParent.push_back(bestsol[0]);
@@ -217,15 +269,9 @@ vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize) {
 	int elitesumf = 0;
 	vector<pair<int, int>> RankFitness; //<originIndex, RankFitness>
 	int csize = cursv->size();
-	//가장 bestsol 먼저 넣기
-	int tmpmaxf = bestsol[0].Fitness();
-	int f = tmpmaxf + (0*(minf-tmpmaxf) / (csize));
-	RankFitness.push_back(make_pair(-1, f)); //bestsol의 index = -1
-	sumf += f;
-	elitesumf += f;
 
 	for(int i=0; i<cursv->size(); i++) {
-		int f = maxf + ((i+1)*(minf-maxf) / (csize-1));
+		int f = maxf + ((i)*(minf-maxf) / (csize-1));
 		RankFitness.push_back(make_pair(i, f));
 		sumf += f;
 		if (i < 3)
@@ -233,38 +279,39 @@ vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize) {
 	}
 
 	vector<Solution> nextParent;
-	ll precision = 1000000;
+	// precision은 같은해가 더 많이 반복될 수록 낮아진다.
+	int lowmp = 2;
+	int highmp = 5;
+	int mp = calcMp(repeat, lowmp, highmp);
+	int precision = highmp + lowmp - mp; //precision이 높을수록 elite들을 선택하게 됨
+	cout << "prec: " << precision << "\n";
+
 	/**
 	 *  1-1. selection with Probability
 	 * 		(using Roulette Wheel)
-	 * 		but, the first parent is Elite(top5 in cursv)
 	*/
 	//		
 	for(int i=0; i<PSIZE; i++) {
 		ll rwp = genRandom(sumf);
-		if (i < 1) //number of Elite
-			rwp = genRandom(elitesumf);
+		// if (i < 1) //number of Elite
+		// 	rwp = genRandom(elitesumf);
 
 		ll sump = 0;
 		int ri = 0;
 		while(ri < RankFitness.size()) {
 			int f = RankFitness[ri].second;
 			ll fp = (ll)f*precision;
-			int p = fp / (ll)sumf;
 
-			sump += p;
+			sump += fp;
 			if (sump >= rwp)
 				break ;
 			
 			ri++;
 		}
 		cout << "Selection: " << RankFitness[ri].first << "\n"; //debug
-		if (RankFitness[ri].first == -1)
-			nextParent.push_back(bestsol[0]);
-		else {
-			nextParent.push_back((*cursv)[RankFitness[ri].first]);
-		}
-		RankFitness.erase(RankFitness.begin() + ri);
+
+		nextParent.push_back((*cursv)[RankFitness[ri].first]);
+		RankFitness.erase(RankFitness.begin() + ri); //이미 넣은 것은 RankFitness에서 제거
 	}
 	return (nextParent);
 }
@@ -304,39 +351,35 @@ int findsameFitness(vector<Solution>* dest, Solution* cur) {
 
 
 /**
- * 로지스틱 회귀 함수를 본떠서 만들기
- * @param{repeat} 같은 해가 반복 중인 횟수
- * @param{lowmp, highmp} 하한mp, 상한mp
- * @param{alpha} alpha가 클수록 {x0_ratio} 이후 급격히 올라감
- * 				(보통 6은 완만, 10은 평균, 14는 급격)
- * @param{x0_ratio} 어느 지점부터 급격히 증가하는지 그 기준
- */
-int calcMp(int repeat, int lowmp, int highmp, double alpha = 10.0, double x0_ratio = 2.0/3.0)
-{
-    const double x  = (MAXSAME > 0) ? (double)repeat / (double)MAXSAME : 0.0;
-    const double x0 = x0_ratio;
-
-    auto sigmoid = [&](double t) {
-        return 1.0 / (1.0 + std::exp(-alpha * (t - x0)));
-    };
-
-    const double s  = sigmoid(x);
-    const double s0 = sigmoid(0.0);
-    const double s1 = sigmoid(1.0);
-
-    const double sn = (s - s0) / (s1 - s0); //sn은 0 ~ 1  사이 값
-    return (lowmp + (highmp - lowmp) * sn);
-}
-
-
-/**
  * @param{repeat} 현재 같은 해가 계속 반복되고 있는 횟수. 해가 반복될 때마다 돌연변이 확률이 증가한다.
  */
 void generateChild(vector<Solution>* dest, vector<Solution>* parent, int repeat) {
 	int lowmp = 1;
-	int highmp = 50;
+	int highmp = 20;
 	int mp = calcMp(repeat, lowmp, highmp);
 	cout << "mp: " << mp << "\n"; //debug
+
+	//3-0. mp 확률 만큼 부모를 미리 Permutation해보기
+	for(int i=0; i<parent->size(); i++) {
+		int rv = genRandom(1000);
+		if (rv <= mp) {
+			for(int a=0; a<=9; a++) {
+				for(int b=0; b<=9; b++) {
+					if (a == b)
+						continue ;
+					Solution tmps = (*parent)[i];
+					permutation(a, b, tmps); //a와 b숫자의 모든 위치를 swap
+
+					//permutation에 들어오면 무조건 바뀌도록 첫번째에는 무조건 바꿉시다.
+					if (tmps.Fitness() > (*parent)[i].Fitness() || (a==0 && b==0))
+						(*parent)[i] = tmps;
+				}
+			}
+			cout << "permutation! " << (*parent)[i].Fitness() << "\n"; //debug
+		}
+	}
+
+	int mup = 0; //돌연변이 확률
 
 	//pi 부모와 pj 부모의 조합으로 crossover
 	for(int pi=0; pi<parent->size()-1; pi++) {
@@ -353,7 +396,7 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int repeat)
 					// Mutation
 					for(int j=0; j<C; j++) {
 						int rv = genRandom(1000);
-						if (rv <= mp) {
+						if (rv <= mup) {
 							int sn = genRandom(9);
 							pb.gene[i][j] = (char)(sn+48);
 						}
@@ -376,7 +419,7 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int repeat)
 						
 						//Mutation
 						int rv = genRandom(1000);
-						if (rv <= mp) {
+						if (rv <= mup) {
 							int sn = genRandom(9);
 							pb.gene[i][j] = (char)(sn+48);
 						}
@@ -387,36 +430,6 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int repeat)
 			}
 		}
 	}
-}
-
-
-
-
-/**
- * 수 0 <= a,b < 10 에 해당하는 모든 위치를 바꾸기
- * Fitness계산을 무조건 해줘야합니다...
- * @param{a, b}
- * @param{sol} : 바꿀 대상 Solution
- */
-void permutation(int a, int b, Solution& sol) {
-	char ca = (char)a + 48;
-	char cb = (char)b + 48;
-
-	int swapp = 50; //swapp% 확률로 swap
-
-	for(int r=0; r<R; r++) {
-		for(int c=0; c<C; c++) {
-			int tmpp = genRandom(100);
-			if (sol.gene[r][c] == ca && swapp >= tmpp)
-				sol.gene[r][c] = cb;
-			else if (sol.gene[r][c] == cb && swapp >= tmpp)
-				sol.gene[r][c] = ca;
-		}
-	}
-
-	//Fitness 재 계산
-	sol.fitness = -1;
-	sol.Fitness();
 }
 
 
@@ -440,12 +453,13 @@ int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 
 
 	//같은 해가 몇번동안 반복되는지 <fitness, counting>
-	pair<int, int> samebest = make_pair(bestsol[0].Fitness(), 0);
+	pair<int, int> sameparent = make_pair(0, 0);
 	
 	int gi = 0;
 	while (gi < generation) {
+		cout << "repeat : " << sameparent.second << "\n";
 		// 2. 우수한 개체를 다음 세대의 부모로 선택
-		vector<Solution> parent = selectExcellentParent(&cursv, bssize);
+		vector<Solution> parent = selectExcellentParent(&cursv, bssize, sameparent.second);
 
 		cout << ti << " - GEN" << gi << ": " << parent[0].Fitness() << "(" << parent[0].fitscore << ") /";
 		cout << bestsol[0].Fitness() << "(" << bestsol[0].fitscore << ") /"; //debug : 현재 세대 Fitness
@@ -454,27 +468,15 @@ int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 
 		// 3. Cross over : 두 부모로 새로운 자식 염색체 생성
 		cursv.clear(); //기존 자식 삭제
-		generateChild(&cursv, &parent, samebest.second);
+		generateChild(&cursv, &parent, sameparent.second);
 
-		// 4. 같은해 반복 시 permutation 진행
-		if (samebest.first == bestsol[0].Fitness()) {
-			samebest.second++;
-			if (samebest.second >= MAXSAME) { //계속 반복 중이므로 permutation 진행
-				cout << "permutation!\n"; //debug
-				for(int i=0; i<bestsol.size(); i++) {
-					int a = 0;
-					int b = 0;
-					while (a == b) {
-						a = genRandom(9);
-						b = genRandom(9);
-					}
-					permutation(a, b, bestsol[i]); //a와 b숫자의 모든 위치를 swap
-				}
-				samebest = make_pair(bestsol[0].Fitness(), 0);
-			}
-		}
+		// 4. 같은 해 반복 counting
+		// scoredif 안으로 차이나면 같은 해 반복으로 판별
+		int fdif = 10;
+		if (sameparent.first-fdif <= parent[0].Fitness() && parent[0].Fitness() <= sameparent.first+fdif)
+			sameparent.second++;
 		else
-			samebest = make_pair(bestsol[0].Fitness(), 0);
+			sameparent = make_pair(parent[0].Fitness(), 0);
 		
 
 		// 5-1. best Solution 판단
@@ -494,13 +496,13 @@ int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 
 
 int main() {
-	int testcase = 100;
+	int testcase = 500;
 	int ti = 0;
 	while (ti < testcase) {
 		bestsol.clear();
 		cout << "========= testcase " << ti << "=========" << endl;
 
-		int generation = 1500; // generation LOOP
+		int generation = 5000; // generation LOOP
 		int genes = 100; //number of gene
 		int bestsolsize = PSIZE;
 
