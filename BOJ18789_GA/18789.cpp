@@ -2,7 +2,7 @@
 # define R 8
 # define C 14
 # define STARTNUM 1000
-# define MAXNUM 9999
+# define MAXNUM 8140
 # define PSIZE 2
 # define MAXSAME 30
 using namespace std;
@@ -355,7 +355,7 @@ int findsameFitness(vector<Solution>* dest, Solution* cur) {
  */
 void generateChild(vector<Solution>* dest, vector<Solution>* parent, int repeat) {
 	int lowmp = 1;
-	int highmp = 20;
+	int highmp = 40;
 	int mp = calcMp(repeat, lowmp, highmp);
 	cout << "mp: " << mp << "\n"; //debug
 
@@ -473,10 +473,10 @@ int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 		// 4. 같은 해 반복 counting
 		// scoredif 안으로 차이나면 같은 해 반복으로 판별
 		int fdif = 10;
-		if (sameparent.first-fdif <= parent[0].Fitness() && parent[0].Fitness() <= sameparent.first+fdif)
+		if (sameparent.first-fdif <= parent[0].fitscore && parent[0].fitscore <= sameparent.first+fdif)
 			sameparent.second++;
 		else
-			sameparent = make_pair(parent[0].Fitness(), 0);
+			sameparent = make_pair(parent[0].fitscore, 0);
 		
 
 		// 5-1. best Solution 판단
