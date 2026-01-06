@@ -1,8 +1,8 @@
 #include "libct.h"
 # define R 8
 # define C 14
-# define STARTNUM 1000
-# define MAXNUM 8140
+# define STARTNUM 1
+# define MAXNUM 9999
 # define PSIZE 2
 # define MAXSAME 30
 using namespace std;
@@ -279,12 +279,13 @@ vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize, int 
 	}
 
 	vector<Solution> nextParent;
-	// precision은 같은해가 더 많이 반복될 수록 낮아진다.
-	int lowmp = 2;
-	int highmp = 5;
-	int mp = calcMp(repeat, lowmp, highmp);
-	int precision = highmp + lowmp - mp; //precision이 높을수록 elite들을 선택하게 됨
-	cout << "prec: " << precision << "\n";
+	// // precision은 같은해가 더 많이 반복될 수록 낮아진다.
+	// int lowmp = 1;
+	// int highmp = 5;
+	// int mp = calcMp(repeat, lowmp, highmp);
+	// int precision = highmp + lowmp - mp; //precision이 높을수록 elite들을 선택하게 됨
+	// cout << "prec: " << precision << "\n";
+	int precision = 3;
 
 	/**
 	 *  1-1. selection with Probability
@@ -379,7 +380,14 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int repeat)
 		}
 	}
 
-	int mup = 0; //돌연변이 확률
+	int mup = 1; //돌연변이 확률
+	if (repeat >= MAXSAME) { //아주 가끔씩 대격변이 일어남
+		int rv = genRandom(1000);
+		if (rv <= 8) {
+			cout << "earthQuake!\n";
+			mup = 800;
+		}
+	}
 
 	//pi 부모와 pj 부모의 조합으로 crossover
 	for(int pi=0; pi<parent->size()-1; pi++) {
@@ -432,6 +440,35 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int repeat)
 	}
 }
 
+Solution parentNumChange(Solution& s) {
+	int originFitness = s.Fitness();
+	Solution bests = s;
+	//Fitness 재계산 해야함.
+	bests.fitness = -1;
+	s.fitness = -1;
+
+	for(int r=0; r<R; r++) {
+		for(int c=0; c<C; c++) {
+			char originnumstr = s.gene[r][c];
+			for(int num=0; num <= 9; num++) {
+				char numstr = (char)num + 48;
+				s.gene[r][c] = numstr;
+				s.fitness = -1;
+				if (bests.Fitness() < s.Fitness())
+					bests = s;
+				else if (bests.Fitness() == s.Fitness() && bests.fitscore < s.fitscore)
+					bests = s;
+			}
+			s.gene[r][c] = originnumstr;
+		}
+	}
+
+	s = bests;
+	s.Fitness();
+	cout << "numChange: " << originFitness << " -> " << s.Fitness() << "\n";
+	return (bests);
+}
+
 
 /**
  * @param{generation} : 세대 수 (Loop 수)
@@ -454,12 +491,24 @@ int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 
 	//같은 해가 몇번동안 반복되는지 <fitness, counting>
 	pair<int, int> sameparent = make_pair(0, 0);
+
+	int changeLowp = 1;
+	int changeHighp = 30;
 	
 	int gi = 0;
 	while (gi < generation) {
 		cout << "repeat : " << sameparent.second << "\n";
 		// 2. 우수한 개체를 다음 세대의 부모로 선택
 		vector<Solution> parent = selectExcellentParent(&cursv, bssize, sameparent.second);
+
+		// 2-1. 같은 해 반복 시 parent의 모든 수를 바꿔서 해보기
+		int changep = calcMp(sameparent.second, changeLowp, changeHighp);
+		int rv = genRandom(1000);
+		if (rv <= changep) {
+			for(int pi=0; pi<parent.size(); pi++) {
+				parent[pi] = parentNumChange(parent[pi]);
+			}
+		}
 
 		cout << ti << " - GEN" << gi << ": " << parent[0].Fitness() << "(" << parent[0].fitscore << ") /";
 		cout << bestsol[0].Fitness() << "(" << bestsol[0].fitscore << ") /"; //debug : 현재 세대 Fitness
@@ -478,8 +527,7 @@ int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 		else
 			sameparent = make_pair(parent[0].fitscore, 0);
 		
-
-		// 5-1. best Solution 판단
+		// 5. best Solution 판단
 		updateBest(bestsol, cursv);
 
 		if (bestsol[0].fitscore >= 8140) {
@@ -496,7 +544,7 @@ int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
 
 
 int main() {
-	int testcase = 500;
+	int testcase = 100;
 	int ti = 0;
 	while (ti < testcase) {
 		bestsol.clear();
