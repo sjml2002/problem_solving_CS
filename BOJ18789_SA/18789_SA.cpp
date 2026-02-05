@@ -1,10 +1,27 @@
 #include "libct.h"
 # define R 8
 # define C 14
+# define STARTNUM 1000
 # define MAXNUM 9999
 # define PSIZE 2
 using namespace std;
 typedef long long int ll;
+
+/*
+	0. 이번에는 기존의 점수를 계산하는 유일한 길을 줄이는 방법 대신 다른 방법으로 풀 계획
+
+	1. 점수 계산은 1~9999 까지 그대로 가져간다.
+
+	2. Mutation의 방법을 2가지로 한다.
+	2-1. 0 <= x,y < 10 , x!=y 에 대해서 모든 x,y의 위치를 변경한다.
+		N번 반복했음에도 최고 점수가 변하지 않을 때 수행
+	2-2. 각 위치에 있는 원소에서 M%의 확률로 다른 수로 변이 한다.
+		단, 2-1이 실행될 때는 2-2가 실행되지 않는다.
+	
+	3. 
+	
+	4. 최적화를 위해 threading 방식을 고안한다.
+*/
 
 /**
  * 랜덤 값 생성
@@ -28,28 +45,12 @@ class Solution {
 public:
 	string gene[R]; //실제 해
 	int fitness = -1;
-	int fitscore = -1;
-	set<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
-	int visUniquePath[R][C]; // [i][j] 가 uniquePath에 사용되었는지
-	int uniquePathCnt = 0;
-	double upc = 5; //uniquePath인 격자의 수 (의 가중치)
-	double supc = 0.1; //uniquePath 자체 총 개수 (의 가중치)
+	int fitscore = -1; //문제에서의 점수
 
-	Solution() {
-		for(int i=0; i<R; i++) {
-			for(int j=0; j<C; j++) {
-				visUniquePath[i][j] = 0;
-			}
-		}
-	}
+	Solution() {}
 	Solution(string tmp[]) {
 		for(int i=0; i<R; i++)
 			gene[i] = tmp[i];
-		for(int i=0; i<R; i++) {
-			for(int j=0; j<C; j++) {
-				visUniquePath[i][j] = 0;
-			}
-		}
 	}
 
 	
@@ -67,44 +68,23 @@ public:
 	
 	/**
 	 * - 적합도 평가 (점수 채점) 
-	 * 실제 점수 - (upc)*uniquePathCnt
-	 * //upc는 uniquePathCnt 가중치를 얼마나 적용할 것인지에 대한 비율
-	 * uniquePathCnt는 score을 만들 수 있는 방법이 단 하나밖에 없는 score들을 카운트한다.
-	 * uniquePathCnt는 후에 Fitness에 음수 가중치로 들어간다.
 	*/
 	int Fitness() {
 		if (this->fitness != -1)
 			return (this->fitness);
 		
-		int score = 1;
+		int score = STARTNUM;
 		int fitscoreflag = 0;
-		int totalscore = 0;
+		int totalscore = 0; //STARTNUM~MAXNUM까지 채울 수 있는 점수
 		while (score <= MAXNUM) {
 			string scorestr = to_string(score);
 			int flag = 0;
 			for(int i=0; i<R; i++) {
 				for(int j=0; j<C; j++) {
 					if (scorestr[0] == gene[i][j]) {
-						vector<pair<int, int>> path;
-						int successFlag = Fitness_BFS(&path, scorestr, i, j, 1);
-						if (successFlag) {
-                            possibleRepresent[score].insert(path);
-                            flag = 1;
-                        }
+						int successFlag = Fitness_BFS(scorestr, i, j, 1);
 					}
 				}
-			}
-			
-			if (possibleRepresent[score].size() == 1) {
-				//path 은 score에서 unique한 path임.
-                for(auto path=possibleRepresent[score].begin(); path != possibleRepresent[score].end(); path++) {
-                    //output path
-                    for(int i=0; i<path->size(); i++)  {
-                        int y = (*path)[i].first;
-                        int x = (*path)[i].second;
-                        visUniquePath[y][x]++;
-                    }
-                }
 			}
 			
 			if (!flag) { //score을 찾지 못했음 
@@ -119,44 +99,32 @@ public:
 			score++;
 		}
 
-		//uniquepath Cnt 계산
-		int sumupc = 0;
-		for(int i=0; i<R; i++) {
-			for(int j=0; j<C; j++) {
-				if (visUniquePath[i][j] > 0)
-					uniquePathCnt++;
-			}
-		}
-		this->fitness = totalscore - (upc * uniquePathCnt) - (supc * sumupc);
+		this->fitness = totalscore;
 		return (this->fitness);
 	}
 	
-	int Fitness_BFS(vector<pair<int, int>>* path, string& scorestr, int i, int j, int idx) {
-        path->push_back(make_pair(i,j));
-
+	int Fitness_BFS(string& scorestr, int i, int j, int idx) {
 		if (idx == scorestr.size())
 			return (1);
 		
-		int flag = 0;
+		int flag = 0; //flag == 1 이라면 scorestr을 표현할 수 있다는 뜻이다.
 		if (!flag && i>0 && gene[i-1][j] == scorestr[idx]) //상 
-			flag = flag | Fitness_BFS(path, scorestr, i-1, j, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i-1, j, idx+1);
 		if (!flag && i<R-1 && gene[i+1][j] == scorestr[idx]) //하 
-			flag = flag | Fitness_BFS(path, scorestr, i+1, j, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i+1, j, idx+1);
 		if (!flag && j>0 && gene[i][j-1] == scorestr[idx]) //좌 
-			flag = flag | Fitness_BFS(path, scorestr, i, j-1, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i, j-1, idx+1);
 		if (!flag && j<C-1 && gene[i][j+1] == scorestr[idx]) //우 
-			flag = flag | Fitness_BFS(path, scorestr, i, j+1, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i, j+1, idx+1);
 		if (!flag && (i>0 && j>0) && gene[i-1][j-1] == scorestr[idx]) //좌상 
-			flag = flag | Fitness_BFS(path, scorestr, i-1, j-1, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i-1, j-1, idx+1);
 		if (!flag && (i>0 && j<C-1) && gene[i-1][j+1] == scorestr[idx]) //우상 
-			flag = flag | Fitness_BFS(path, scorestr, i-1, j+1, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i-1, j+1, idx+1);
 		if (!flag && (i<R-1 && j>0) && gene[i+1][j-1] == scorestr[idx]) //좌하 
-			flag = flag | Fitness_BFS(path, scorestr, i+1, j-1, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i+1, j-1, idx+1);
 		if (!flag && (i<R-1 && j<C-1) && gene[i+1][j+1] == scorestr[idx]) //우하 
-			flag = flag | Fitness_BFS(path, scorestr, i+1, j+1, idx+1);
-
-        if (flag == 0)
-            path->pop_back();
+			flag = flag | Fitness_BFS(scorestr, i+1, j+1, idx+1);
+		
 		return (flag);
 	}
 	
@@ -198,8 +166,6 @@ void updateBest(vector<Solution>& bestsol, const vector<Solution>& cursv) {
 
 /**
  * Mutation
- * 바로 옆에 있는 숫자와 같은 숫자가 되도록 유도
- * 돌연변이 확률은 generateChild에서 정하기
  */
 int selectNum(string s[], int i, int j) {
 	int maxv = 0;
@@ -264,7 +230,7 @@ Solution generateNeibor(Solution* sol) {
 	for(int r=0; r<R; r++) {
 		for(int c=0; c<C; c++) {
 			int p = genRandom(100);
-			if (p <= selectp) {
+			if (p <= selectp) { // 2-1.의 mutation 진행
 				char newnum = (char)(selectNum(neighbor1.gene, r, c) + 48);
 				neighbor1.gene[r][c] = newnum;
 			}

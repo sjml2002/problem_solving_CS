@@ -1,10 +1,31 @@
 #include "libct.h"
 # define R 8
 # define C 14
-# define PSIZE 3 //부모의 총 개수
+# define STARTNUM 1
 # define MAXNUM 9999
+# define PSIZE 2
+# define MAXSAME 30
 using namespace std;
 typedef long long int ll;
+
+/*
+	0. 이번에는 기존의 점수를 계산하는 유일한 길을 줄이는 방법 대신 다른 방법으로 풀 계획
+
+	1. 점수 계산은 1~9999 까지 그대로 가져간다.
+
+	2. Mutation의 방법을 2가지로 한다.
+	2-1. 0 <= x,y < 10 , x!=y 에 대해서 모든 x,y의 위치를 변경한다.
+		N번 반복했음에도 최고 점수가 변하지 않을 때 수행
+	2-2. 각 위치에 있는 원소에서 M%의 확률로 다른 수로 변이 한다.
+		단, 2-1이 실행될 때는 2-2가 실행되지 않는다.
+
+
+	3. 나머지의 parent selection이나, cross over 같은 부분은
+		세간에 나와있는 일반적인 방법을 사용한다.
+		(Roulette Wheel 방식, matrix cross over 방식 채택)
+	
+	4. 최적화를 위해 threading 방식을 고안한다.
+*/
 
 /**
  * 랜덤 값 생성
@@ -13,7 +34,7 @@ static random_device rd;   // 시드값 생성(한 번만)
 static mt19937 gen(
     chrono::steady_clock::now().time_since_epoch().count()
 ); // 매번 시드값 달라짐
-//0 ~ end 사이 범위 정수 랜덤값 생성 함수
+//0 ~ end 사이 범위 정수 랜덤값 생성 함수 (0과 end 포함)
 int genRandom(int end) { 
 	uniform_int_distribution<> dis(0, end);
 	return (dis(gen));
@@ -22,34 +43,23 @@ int genRandom(int end) {
 
 
 /*
-	유전 알고리즘으로 풀어보자. 
+	Simulated Annealing
 */
 class Solution {
 public:
 	string gene[R]; //실제 해
-	int fitness = -1;
-	int fitscore = -1;
-	set<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
-	int visUniquePath[R][C]; // [i][j] 가 uniquePath에 사용되었는지
-	int uniquePathCnt = 0;
-	double upc = 10; //uniquePath인 격자의 수 (의 가중치)
-	double supc = 0.1; //uniquePath 자체 총 개수 (의 가중치)
+	int fitness = -1; //STARTNUM~MAXNUM까지 채울 수 있는 점수
+	int fitscore = -1; //문제에서의 점수
 
 	Solution() {
-		for(int i=0; i<R; i++) {
-			for(int j=0; j<C; j++) {
-				visUniquePath[i][j] = 0;
-			}
-		}
+		this->fitness = -1;
+		this->fitscore = -1;
 	}
 	Solution(string tmp[]) {
+		this->fitness = -1;
+		this->fitscore = -1;
 		for(int i=0; i<R; i++)
 			gene[i] = tmp[i];
-		for(int i=0; i<R; i++) {
-			for(int j=0; j<C; j++) {
-				visUniquePath[i][j] = 0;
-			}
-		}
 	}
 
 	
@@ -62,50 +72,30 @@ public:
 			}
 			gene[i] = tmp;
 		}
-		this->Fitness();
 	}
 
 	
 	/**
 	 * - 적합도 평가 (점수 채점) 
-	 * 실제 점수 - (upc)*uniquePathCnt
-	 * //upc는 uniquePathCnt 가중치를 얼마나 적용할 것인지에 대한 비율
-	 * uniquePathCnt는 score을 만들 수 있는 방법이 단 하나밖에 없는 score들을 카운트한다.
-	 * uniquePathCnt는 후에 Fitness에 음수 가중치로 들어간다.
 	*/
 	int Fitness() {
 		if (this->fitness != -1)
 			return (this->fitness);
 		
-		int score = 1000;
+		int score = STARTNUM;
 		int fitscoreflag = 0;
-		int totalscore = 0;
+		int totalscore = 0; //STARTNUM~MAXNUM까지 채울 수 있는 점수
 		while (score <= MAXNUM) {
 			string scorestr = to_string(score);
 			int flag = 0;
 			for(int i=0; i<R; i++) {
 				for(int j=0; j<C; j++) {
 					if (scorestr[0] == gene[i][j]) {
-						vector<pair<int, int>> path;
-						int successFlag = Fitness_BFS(&path, scorestr, i, j, 1);
-						if (successFlag) {
-                            possibleRepresent[score].insert(path);
-                            flag = 1;
-                        }
+						int successFlag = Fitness_BFS(scorestr, i, j, 1);
+						if (successFlag) //scorestr 만들기 가능
+							flag = 1;
 					}
 				}
-			}
-			
-			if (possibleRepresent[score].size() == 1) {
-				//path 은 score에서 unique한 path임.
-                for(auto path=possibleRepresent[score].begin(); path != possibleRepresent[score].end(); path++) {
-                    //output path
-                    for(int i=0; i<path->size(); i++)  {
-                        int y = (*path)[i].first;
-                        int x = (*path)[i].second;
-                        visUniquePath[y][x]++;
-                    }
-                }
 			}
 			
 			if (!flag) { //score을 찾지 못했음 
@@ -120,44 +110,32 @@ public:
 			score++;
 		}
 
-		//uniquepath Cnt 계산
-		int sumupc = 0;
-		for(int i=0; i<R; i++) {
-			for(int j=0; j<C; j++) {
-				if (visUniquePath[i][j] > 0)
-					uniquePathCnt++;
-			}
-		}
-		this->fitness = totalscore - (upc * uniquePathCnt) - (supc * sumupc);
+		this->fitness = totalscore;
 		return (this->fitness);
 	}
 	
-	int Fitness_BFS(vector<pair<int, int>>* path, string& scorestr, int i, int j, int idx) {
-        path->push_back(make_pair(i,j));
-
+	int Fitness_BFS(string& scorestr, int i, int j, int idx) {
 		if (idx == scorestr.size())
 			return (1);
 		
-		int flag = 0;
+		int flag = 0; //flag == 1 이라면 scorestr을 표현할 수 있다는 뜻이다.
 		if (!flag && i>0 && gene[i-1][j] == scorestr[idx]) //상 
-			flag = flag | Fitness_BFS(path, scorestr, i-1, j, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i-1, j, idx+1);
 		if (!flag && i<R-1 && gene[i+1][j] == scorestr[idx]) //하 
-			flag = flag | Fitness_BFS(path, scorestr, i+1, j, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i+1, j, idx+1);
 		if (!flag && j>0 && gene[i][j-1] == scorestr[idx]) //좌 
-			flag = flag | Fitness_BFS(path, scorestr, i, j-1, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i, j-1, idx+1);
 		if (!flag && j<C-1 && gene[i][j+1] == scorestr[idx]) //우 
-			flag = flag | Fitness_BFS(path, scorestr, i, j+1, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i, j+1, idx+1);
 		if (!flag && (i>0 && j>0) && gene[i-1][j-1] == scorestr[idx]) //좌상 
-			flag = flag | Fitness_BFS(path, scorestr, i-1, j-1, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i-1, j-1, idx+1);
 		if (!flag && (i>0 && j<C-1) && gene[i-1][j+1] == scorestr[idx]) //우상 
-			flag = flag | Fitness_BFS(path, scorestr, i-1, j+1, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i-1, j+1, idx+1);
 		if (!flag && (i<R-1 && j>0) && gene[i+1][j-1] == scorestr[idx]) //좌하 
-			flag = flag | Fitness_BFS(path, scorestr, i+1, j-1, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i+1, j-1, idx+1);
 		if (!flag && (i<R-1 && j<C-1) && gene[i+1][j+1] == scorestr[idx]) //우하 
-			flag = flag | Fitness_BFS(path, scorestr, i+1, j+1, idx+1);
-
-        if (flag == 0)
-            path->pop_back();
+			flag = flag | Fitness_BFS(scorestr, i+1, j+1, idx+1);
+		
 		return (flag);
 	}
 	
@@ -170,28 +148,100 @@ public:
 	}
 };
 
+
 /**
  * sort cmp
  */
 int sortcmp(Solution& s1, Solution& s2) {
+	if (s1.Fitness() == s2.Fitness())
+		return (s1.fitscore > s2.fitscore);
 	return (s1.Fitness() > s2.Fitness());
 }
 
 vector<Solution> bestsol;
+Solution realbestsol; //기록용 bestsol
 /**
  * best sol은 업데이트 함
  */
-void updateBest(vector<Solution>& bestsol, const vector<Solution>& cursv) {
-    int bssize = bestsol.size();
-    vector<Solution> merged = bestsol;
-    merged.insert(merged.end(), cursv.begin(), cursv.end()); //bestsol + cursv
-	sort(merged.begin(), merged.end(), sortcmp);
+void updateBest(vector<Solution>& bestsol, vector<Solution>& cursv) {
+	map<int, Solution> nextbs; //next bestsolution <-Fitness, Solution>
+	//내림차순 정렬을 위해 Fitness는 내림차순 정렬을 진행한다.
+	for(int i=0; i<bestsol.size(); i++) {
+		nextbs.insert(make_pair(-bestsol[i].Fitness(), bestsol[i]));
+	}
+	for(int i=0; i<cursv.size(); i++) {
+		int key = -cursv[i].Fitness();
 
-    // 상위 bssize만 남기기
-    if (merged.size() > bssize)
-        merged.resize(bssize);
-    // bestsol 갱신
-    bestsol = merged;
+		auto it = nextbs.find(key);
+		auto endit = --nextbs.end();
+		//중복되지 않았고 현재 가장 작은 점수보다 높으므로 insert
+		if (it == nextbs.end() && -key > -(endit->first)) { 
+			nextbs.insert(make_pair(key, cursv[i]));
+			nextbs.erase(endit); //best sol에서 탈락됨.
+		}
+	}
+
+	bestsol.clear();
+	for(auto it=nextbs.begin(); it != nextbs.end(); it++) {
+		bestsol.push_back(it->second);
+	}
+
+	if (realbestsol.Fitness() < bestsol[0].Fitness())
+		realbestsol = bestsol[0];
+	else if (realbestsol.Fitness() == bestsol[0].Fitness() && realbestsol.fitscore < bestsol[0].fitscore)
+		realbestsol = bestsol[0];
+}
+
+/**
+ * 로지스틱 회귀 함수를 본떠서 만들기
+ * @param{repeat} 같은 해가 반복 중인 횟수
+ * @param{lowmp, highmp} 하한mp, 상한mp
+ * @param{alpha} alpha가 클수록 {x0_ratio} 이후 급격히 올라감
+ * 				(보통 6은 완만, 10은 평균, 14는 급격)
+ * @param{x0_ratio} 어느 지점부터 급격히 증가하는지 그 기준
+ */
+int calcMp(int repeat, int lowmp, int highmp, double alpha = 10.0, double x0_ratio = 2.0/3.0)
+{
+    const double x  = (MAXSAME > 0) ? (double)repeat / (double)MAXSAME : 0.0;
+    const double x0 = x0_ratio;
+
+    auto sigmoid = [&](double t) {
+        return 1.0 / (1.0 + std::exp(-alpha * (t - x0)));
+    };
+
+    const double s  = sigmoid(x);
+    const double s0 = sigmoid(0.0);
+    const double s1 = sigmoid(1.0);
+
+    const double sn = (s - s0) / (s1 - s0); //sn은 0 ~ 1  사이 값
+    return (lowmp + (highmp - lowmp) * sn);
+}
+
+/**
+ * 수 0 <= a,b < 10 에 해당하는 모든 위치를 바꾸기
+ * Fitness계산을 무조건 해줘야합니다...
+ * @param{a, b}
+ * @param{sol} : 바꿀 대상 Solution
+ */
+void permutation(int a, int b, Solution& sol) {
+	char ca = (char)a + 48;
+	char cb = (char)b + 48;
+
+	int swapp = 50; //swapp% 확률로 swap
+
+	for(int r=0; r<R; r++) {
+		for(int c=0; c<C; c++) {
+			int tmpp = genRandom(100);
+			if (sol.gene[r][c] == ca && swapp >= tmpp)
+				sol.gene[r][c] = cb;
+			else if (sol.gene[r][c] == cb && swapp >= tmpp)
+				sol.gene[r][c] = ca;
+		}
+	}
+
+	//Fitness 재 계산
+	sol.fitness = -1;
+	sol.Fitness();
 }
 
 
@@ -200,7 +250,15 @@ void updateBest(vector<Solution>& bestsol, const vector<Solution>& cursv) {
  * 우수한 개체를 다음 세대의 부모를 선택
  * 1. Rank-Based Selection
 */
-vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize) {
+vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize, int repeat) {
+	if (cursv->size() == 1) { //cursv->size == 1이면 나중에 나눗셈에서 에러 걸리므로 예외처리
+		vector<Solution> nextParent;
+		nextParent.push_back(bestsol[0]);
+		nextParent.push_back((*cursv)[0]);
+		return nextParent;
+	}
+
+
 	sort(cursv->begin(), cursv->end(), sortcmp);
 
 	// 1. Rank-Based Selection
@@ -211,98 +269,54 @@ vector<Solution> selectExcellentParent(vector<Solution>* cursv, int bssize) {
 	int elitesumf = 0;
 	vector<pair<int, int>> RankFitness; //<originIndex, RankFitness>
 	int csize = cursv->size();
+
 	for(int i=0; i<cursv->size(); i++) {
-		int f = maxf + (i*(minf-maxf) / (csize-1));
+		int f = maxf + ((i)*(minf-maxf) / (csize-1));
 		RankFitness.push_back(make_pair(i, f));
 		sumf += f;
-		if (i < 5)
+		if (i < 3)
 			elitesumf += f;
 	}
 
 	vector<Solution> nextParent;
-	ll precision = 1000000;
+	// // precision은 같은해가 더 많이 반복될 수록 낮아진다.
+	// int lowmp = 1;
+	// int highmp = 5;
+	// int mp = calcMp(repeat, lowmp, highmp);
+	// int precision = highmp + lowmp - mp; //precision이 높을수록 elite들을 선택하게 됨
+	// cout << "prec: " << precision << "\n";
+	int precision = 3;
+
 	/**
 	 *  1-1. selection with Probability
 	 * 		(using Roulette Wheel)
-	 * 		but, the first parent is Elite(top5 in cursv)
 	*/
 	//		
 	for(int i=0; i<PSIZE; i++) {
 		ll rwp = genRandom(sumf);
-		if (i <= 1) //number of Elite
-			rwp = genRandom(elitesumf);
+		// if (i < 1) //number of Elite
+		// 	rwp = genRandom(elitesumf);
 
 		ll sump = 0;
-		int ri=0;
+		int ri = 0;
 		while(ri < RankFitness.size()) {
-			int f = RankFitness[i].second;
+			int f = RankFitness[ri].second;
 			ll fp = (ll)f*precision;
-			int p = fp / (ll)sumf;
 
-			sump += p;
+			sump += fp;
 			if (sump >= rwp)
 				break ;
+			
 			ri++;
 		}
-		cout << "Selection: " << ri << "\n"; //debug
-		nextParent.push_back((*cursv)[ri]);
-		RankFitness.erase(RankFitness.begin() + ri);
+		cout << "Selection: " << RankFitness[ri].first << "\n"; //debug
+
+		nextParent.push_back((*cursv)[RankFitness[ri].first]);
+		RankFitness.erase(RankFitness.begin() + ri); //이미 넣은 것은 RankFitness에서 제거
 	}
 	return (nextParent);
 }
 
-
-/**
- * Mutation
- * 바로 옆에 있는 숫자와 같은 숫자가 되도록 유도
- * 돌연변이 확률은 generateChild에서 정하기
- */
-int selectNum(string s[], int i, int j) {
-	int maxv = 0;
-	int maxnum = 0;
-	for(int num=0; num<10; num++) {
-		char numstr = (char)(num+48);
-		int flag = 0;
-		if (i>0 && s[i-1][j] == numstr) //상 
-			flag++;
-		if (i<R-1 && s[i+1][j] == numstr) //하 
-			flag++;
-		if (j>0 && s[i][j-1] == numstr) //좌 
-			flag++;
-		if (j<C-1 && s[i][j+1] == numstr) //우 
-			flag++;
-		if ((i>0 && j>0) && s[i-1][j-1] == numstr) //좌상 
-			flag++;
-		if ((i>0 && j<C-1) && s[i-1][j+1] == numstr) //우상 
-			flag++;
-		if ((i<R-1 && j>0) && s[i+1][j-1] == numstr) //좌하 
-			flag++;
-		if ((i<R-1 && j<C-1) && s[i+1][j+1] == numstr) //우하 
-			flag++;
-		
-		//Rank Based Selection 비스무리 하게
-		int rv;
-		if (flag == 1) { //같은 숫자 연속적으로 나올 수 있도록
-			//만약에 현재 위치가 끝쪽이라면 최대한 다른값 선택할 수 있도록
-			if (i==0 || i==R-1 || j==0 || j==C-1)
-				rv = genRandom(0);
-			else
-				rv = genRandom(600); //상한선 설정
-		}
-		else if (flag >= 4) //num과 같은숫자가 주변에 과도하게 많다면 선택되지 않도록
-			rv = genRandom(0);
-		else if (flag == 0) //num과 같은 숫자가 주변에 하나도 없다면 선택할 확률 매우 높임
-			rv = genRandom(1000);
-		else //flag가 적을수록 선택될 확률을 높임
-			rv = genRandom(1000/flag); //flag=2 : 500 , flag=3 : 333
-		
-		if (rv > maxv) {
-			maxv = rv;
-			maxnum = num;
-		}
-	}
-	return (maxnum);
-}
 
 
 /**
@@ -327,17 +341,53 @@ int selectNum(string s[], int i, int j) {
 	3-2. 계속 같은 자식을 생성하기 때문에 Fitness가 동일한거는 제외해야할듯
 */
 
-// //dest안의 Solution과 중복인 cur이 존재하는지
-// int findsameFitness(vector<Solution>* dest, Solution* cur) {
-// 	for(int i=0; i<dest->size(); i++) {
-// 		if ((*dest)[i].Fitness() == cur->Fitness())
-// 			return (1);
-// 	}
-// 	return (0);
-// } 
+//dest안의 Solution과 중복인 cur이 존재하는지
+int findsameFitness(vector<Solution>* dest, Solution* cur) {
+	for(int i=0; i<dest->size(); i++) {
+		if ((*dest)[i].Fitness() == cur->Fitness())
+			return (1);
+	}
+	return (0);
+}
 
-void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) {
-	int mp = 25; //mp% 확률로 돌연변이
+
+/**
+ * @param{repeat} 현재 같은 해가 계속 반복되고 있는 횟수. 해가 반복될 때마다 돌연변이 확률이 증가한다.
+ */
+void generateChild(vector<Solution>* dest, vector<Solution>* parent, int repeat) {
+	int lowmp = 1;
+	int highmp = 40;
+	int mp = calcMp(repeat, lowmp, highmp);
+	cout << "mp: " << mp << "\n"; //debug
+
+	//3-0. mp 확률 만큼 부모를 미리 Permutation해보기
+	for(int i=0; i<parent->size(); i++) {
+		int rv = genRandom(1000);
+		if (rv <= mp) {
+			for(int a=0; a<=9; a++) {
+				for(int b=0; b<=9; b++) {
+					if (a == b)
+						continue ;
+					Solution tmps = (*parent)[i];
+					permutation(a, b, tmps); //a와 b숫자의 모든 위치를 swap
+
+					//permutation에 들어오면 무조건 바뀌도록 첫번째에는 무조건 바꿉시다.
+					if (tmps.Fitness() > (*parent)[i].Fitness() || (a==0 && b==0))
+						(*parent)[i] = tmps;
+				}
+			}
+			cout << "permutation! " << (*parent)[i].Fitness() << "\n"; //debug
+		}
+	}
+
+	int mup = 1; //돌연변이 확률
+	if (repeat >= MAXSAME) { //아주 가끔씩 대격변이 일어남
+		int rv = genRandom(1000);
+		if (rv <= 8) {
+			cout << "earthQuake!\n";
+			mup = 800;
+		}
+	}
 
 	//pi 부모와 pj 부모의 조합으로 crossover
 	for(int pi=0; pi<parent->size()-1; pi++) {
@@ -354,14 +404,14 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 					// Mutation
 					for(int j=0; j<C; j++) {
 						int rv = genRandom(1000);
-						if (rv <= mp) {
-							int sn = selectNum(pb.gene, i, j);
+						if (rv <= mup) {
+							int sn = genRandom(9);
 							pb.gene[i][j] = (char)(sn+48);
 						}
 					}
 				}
-				//if (!findsameFitness(dest, &pb)) //pb가 중복인지 확인
-				dest->push_back(pb);
+				if (!findsameFitness(dest, &pb)) //pb가 중복 아닐 때 자식 선택
+					dest->push_back(pb);
 			}
 			
 			// 3-2. Column based one-point crossover
@@ -377,30 +427,48 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
 						
 						//Mutation
 						int rv = genRandom(1000);
-						if (rv <= mp) {
-							int sn = selectNum(pb.gene, i, j);
+						if (rv <= mup) {
+							int sn = genRandom(9);
 							pb.gene[i][j] = (char)(sn+48);
 						}
 					}
 				}
-				//if (!findsameFitness(dest, &pb)) //pb가 중복인지 확인
-				dest->push_back(pb);
+				if (!findsameFitness(dest, &pb)) //pb가 중복 아닐 때 자식 선택
+					dest->push_back(pb);
 			}
 		}
 	}
-
-	// //dest의 개수를 상위 genes로 줄이기
-	// if (dest->size() > genes) {
-	// 	sort(dest->begin(), dest->end(), sortcmp);
-	// 	dest->resize(genes);
-	// }
-	// else if (dest->size() < genes) { //기존의 부모들로 dest의 개수를 genes로 채우기
-	// 	int pi = 0;
-	// 	for(int gi=dest->size(); gi < genes; gi++) {
-	// 		dest->push_back((*parent)[pi++]);
-	// 	}
-	// }
 }
+
+Solution parentNumChange(Solution& s) {
+	int originFitness = s.Fitness();
+	Solution bests = s;
+	//Fitness 재계산 해야함.
+	bests.fitness = -1;
+	s.fitness = -1;
+
+	for(int r=0; r<R; r++) {
+		for(int c=0; c<C; c++) {
+			char originnumstr = s.gene[r][c];
+			for(int num=0; num <= 9; num++) {
+				char numstr = (char)num + 48;
+				s.gene[r][c] = numstr;
+				s.fitness = -1;
+				if (bests.Fitness() < s.Fitness())
+					bests = s;
+				else if (bests.Fitness() == s.Fitness() && bests.fitscore < s.fitscore)
+					bests = s;
+			}
+			s.gene[r][c] = originnumstr;
+		}
+	}
+
+	s = bests;
+	s.Fitness();
+	cout << "numChange: " << originFitness << " -> " << s.Fitness() << "\n";
+	return (bests);
+}
+
 
 /**
  * @param{generation} : 세대 수 (Loop 수)
@@ -408,73 +476,83 @@ void generateChild(vector<Solution>* dest, vector<Solution>* parent, int genes) 
  * @return : 최고 점수 
 */
 int GeneticAlgorithm(int ti, int generation, int genes, int bssize) {
-	// 1. 초기해 (bestsol, bestsol2)
+	// 1. 초기해 (PSIZE 개)
 	vector<Solution> cursv;
-	int randomSize = 1;
+	int randomSize = 0;
 	for(int i=0; i<PSIZE-randomSize; i++)
 		cursv.push_back(bestsol[i]);
-	// 1-1. 초기해 랜덤
-	for(int i=0; i<randomSize; i++) {
-		Solution tmp;
-		tmp.initSol();
-		cursv.push_back(tmp);
-	}
+	// // 1-1. 초기해 랜덤
+	// for(int i=0; i<randomSize; i++) {
+	// 	Solution tmp;
+	// 	tmp.initSol();
+	// 	cursv.push_back(tmp);
+	// }
 
 
+	//같은 해가 몇번동안 반복되는지 <fitness, counting>
+	pair<int, int> sameparent = make_pair(0, 0);
+
+	int changeLowp = 1;
+	int changeHighp = 30;
+	
 	int gi = 0;
 	while (gi < generation) {
+		cout << "repeat : " << sameparent.second << "\n";
 		// 2. 우수한 개체를 다음 세대의 부모로 선택
-		vector<Solution> parent = selectExcellentParent(&cursv, bssize);
-		
+		vector<Solution> parent = selectExcellentParent(&cursv, bssize, sameparent.second);
+
+		// 2-1. 같은 해 반복 시 parent의 모든 수를 바꿔서 해보기
+		int changep = calcMp(sameparent.second, changeLowp, changeHighp);
+		int rv = genRandom(1000);
+		if (rv <= changep) {
+			for(int pi=0; pi<parent.size(); pi++) {
+				parent[pi] = parentNumChange(parent[pi]);
+			}
+		}
+
 		cout << ti << " - GEN" << gi << ": " << parent[0].Fitness() << "(" << parent[0].fitscore << ") /";
-		cout << bestsol[0].Fitness() << "(" << bestsol[0].fitscore << ")" << endl; //debug : 현재 세대 Fitness
+		cout << bestsol[0].Fitness() << "(" << bestsol[0].fitscore << ") /"; //debug : 현재 세대 Fitness
+		cout << realbestsol.Fitness() << "(" << realbestsol.fitscore << ")\n"; //debug : 현재 세대 Fitness
+
 
 		// 3. Cross over : 두 부모로 새로운 자식 염색체 생성
 		cursv.clear(); //기존 자식 삭제
-		generateChild(&cursv, &parent, genes);
+		generateChild(&cursv, &parent, sameparent.second);
 
-		// 3-1. best Solution 판단
+		// 4. 같은 해 반복 counting
+		// scoredif 안으로 차이나면 같은 해 반복으로 판별
+		int fdif = 10;
+		if (sameparent.first-fdif <= parent[0].fitscore && parent[0].fitscore <= sameparent.first+fdif)
+			sameparent.second++;
+		else
+			sameparent = make_pair(parent[0].fitscore, 0);
+		
+		// 5. best Solution 판단
 		updateBest(bestsol, cursv);
+
+		if (bestsol[0].fitscore >= 8140) {
+			return (1);
+		}
+
 		gi++;
 	}
 	//마지막 한번 더
 	updateBest(bestsol, cursv); // best Solution 판단
-	/** 
-		만약, best.txt에 기록되는 해를 더 늘리고 싶다면
-		현재 bestsol.size() 인덱스의 cursv를 넣으면 됨. 	
-	**/ 
-	//bestsol.push_back(cursv[0]);
-	
-	//이번 프로그램에서 가장 좋았던 5개 출력
-	// (TODO 251011) 해의 동일성 및 Fitness 수렴도
-	sort(cursv.begin(), cursv.end(), sortcmp);
-	cout << endl << "RESULT" << endl; //debug
-	for(int i=0; i<5; i++) {
-		cout << i << ": ";
-		cursv[i].output(cout);
-	}
 	
 	return (0);
 }
 
 
 int main() {
-	int testcase = 40;
+	int testcase = 100;
 	int ti = 0;
 	while (ti < testcase) {
 		bestsol.clear();
 		cout << "========= testcase " << ti << "=========" << endl;
 
-		int generation = 100; // generation LOOP
+		int generation = 5000; // generation LOOP
 		int genes = 100; //number of gene
 		int bestsolsize = PSIZE;
-
-		//임시 검증
-	//	string tmp[R];
-	//	for(int i=0; i<R; i++)
-	//		cin >> tmp[i];
-	//	Solution tmpsol = Solution(tmp);
-	//	tmpsol.output(cout);
 
 		// 0. init bestsol (Prev GA's best)
 		ifstream ifs("./best.txt");
@@ -499,16 +577,14 @@ int main() {
 			bestsol[i].output(cout); //debug
 		}
 		ifs.close();
+		realbestsol = bestsol[0];
 
 		int res = GeneticAlgorithm(ti, generation, genes, bestsolsize);
 
 		// write best solution in "best.txt"
 		ofstream ofs("./best.txt");
 		if (ofs.is_open()) {
-			/** 만약 best.txt에 기록되는 해를 늘리고 싶다면 bestsol.size()로 바꾸기 */
-			// for(int i=0; i<bestsolsize; i++) {
-			// 	bestsol[i].output(ofs);
-			// }
+			realbestsol.output(ofs);
 			for(int i=0; i<bestsol.size(); i++) {
 				bestsol[i].output(ofs);
 			}
