@@ -1,4 +1,6 @@
 *output.txt
 *.exe
+.vscode/
 BOJ18789_GA/analysis.txt
 BOJ18789_GA/analysis4x7.txt
+TSP_QAP_compare/results
