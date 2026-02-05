@@ -1,10 +1,27 @@
 #include "libct.h"
 # define R 8
 # define C 14
-# define MAXNUM 8140
+# define STARTNUM 1000
+# define MAXNUM 9999
 # define PSIZE 2
 using namespace std;
 typedef long long int ll;
+
+/*
+	0. 이번에는 기존의 점수를 계산하는 유일한 길을 줄이는 방법 대신 다른 방법으로 풀 계획
+
+	1. 점수 계산은 1~9999 까지 그대로 가져간다.
+
+	2. Mutation의 방법을 2가지로 한다.
+	2-1. 0 <= x,y < 10 , x!=y 에 대해서 모든 x,y의 위치를 변경한다.
+		N번 반복했음에도 최고 점수가 변하지 않을 때 수행
+	2-2. 각 위치에 있는 원소에서 M%의 확률로 다른 수로 변이 한다.
+		단, 2-1이 실행될 때는 2-2가 실행되지 않는다.
+	
+	3. 
+	
+	4. 최적화를 위해 threading 방식을 고안한다.
+*/
 
 /**
  * 랜덤 값 생성
@@ -28,10 +45,7 @@ class Solution {
 public:
 	string gene[R]; //실제 해
 	int fitness = -1;
-	int fitscore = -1;
-	set<vector<pair<int, int>>> possibleRepresent[MAXNUM+1]; //[score][path][coord]
-	int uniquePathCnt = 0;
-	double upc = 0.3;
+	int fitscore = -1; //문제에서의 점수
 
 	Solution() {}
 	Solution(string tmp[]) {
@@ -54,36 +68,24 @@ public:
 	
 	/**
 	 * - 적합도 평가 (점수 채점) 
-	 * 실제 점수 - (upc)*uniquePathCnt
-	 * //upc는 uniquePathCnt 가중치를 얼마나 적용할 것인지에 대한 비율
-	 * uniquePathCnt는 score을 만들 수 있는 방법이 단 하나밖에 없는 score들을 카운트한다.
-	 * uniquePathCnt는 후에 Fitness에 음수 가중치로 들어간다.
 	*/
 	int Fitness() {
 		if (this->fitness != -1)
 			return (this->fitness);
 		
-		int score = 1;
+		int score = STARTNUM;
 		int fitscoreflag = 0;
-		int totalscore = 0;
+		int totalscore = 0; //STARTNUM~MAXNUM까지 채울 수 있는 점수
 		while (score <= MAXNUM) {
 			string scorestr = to_string(score);
 			int flag = 0;
 			for(int i=0; i<R; i++) {
 				for(int j=0; j<C; j++) {
 					if (scorestr[0] == gene[i][j]) {
-						vector<pair<int, int>> path;
-						int successFlag = Fitness_BFS(&path, scorestr, i, j, 1);
-						if (successFlag) {
-                            possibleRepresent[score].insert(path);
-                            flag = 1;
-                        }
+						int successFlag = Fitness_BFS(scorestr, i, j, 1);
 					}
 				}
 			}
-			
-			if (possibleRepresent[score].size() == 1)
-				uniquePathCnt++;
 			
 			if (!flag) { //score을 찾지 못했음 
 				if (!fitscoreflag) { //Solution의 fitscore update
@@ -97,36 +99,32 @@ public:
 			score++;
 		}
 
-		this->fitness = totalscore - (upc * uniquePathCnt);
+		this->fitness = totalscore;
 		return (this->fitness);
 	}
 	
-	int Fitness_BFS(vector<pair<int, int>>* path, string& scorestr, int i, int j, int idx) {
-        path->push_back(make_pair(i,j));
-
+	int Fitness_BFS(string& scorestr, int i, int j, int idx) {
 		if (idx == scorestr.size())
 			return (1);
 		
-		int flag = 0;
+		int flag = 0; //flag == 1 이라면 scorestr을 표현할 수 있다는 뜻이다.
 		if (!flag && i>0 && gene[i-1][j] == scorestr[idx]) //상 
-			flag = flag | Fitness_BFS(path, scorestr, i-1, j, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i-1, j, idx+1);
 		if (!flag && i<R-1 && gene[i+1][j] == scorestr[idx]) //하 
-			flag = flag | Fitness_BFS(path, scorestr, i+1, j, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i+1, j, idx+1);
 		if (!flag && j>0 && gene[i][j-1] == scorestr[idx]) //좌 
-			flag = flag | Fitness_BFS(path, scorestr, i, j-1, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i, j-1, idx+1);
 		if (!flag && j<C-1 && gene[i][j+1] == scorestr[idx]) //우 
-			flag = flag | Fitness_BFS(path, scorestr, i, j+1, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i, j+1, idx+1);
 		if (!flag && (i>0 && j>0) && gene[i-1][j-1] == scorestr[idx]) //좌상 
-			flag = flag | Fitness_BFS(path, scorestr, i-1, j-1, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i-1, j-1, idx+1);
 		if (!flag && (i>0 && j<C-1) && gene[i-1][j+1] == scorestr[idx]) //우상 
-			flag = flag | Fitness_BFS(path, scorestr, i-1, j+1, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i-1, j+1, idx+1);
 		if (!flag && (i<R-1 && j>0) && gene[i+1][j-1] == scorestr[idx]) //좌하 
-			flag = flag | Fitness_BFS(path, scorestr, i+1, j-1, idx+1);
+			flag = flag | Fitness_BFS(scorestr, i+1, j-1, idx+1);
 		if (!flag && (i<R-1 && j<C-1) && gene[i+1][j+1] == scorestr[idx]) //우하 
-			flag = flag | Fitness_BFS(path, scorestr, i+1, j+1, idx+1);
-
-        if (flag == 0)
-            path->pop_back();
+			flag = flag | Fitness_BFS(scorestr, i+1, j+1, idx+1);
+		
 		return (flag);
 	}
 	
@@ -168,8 +166,6 @@ void updateBest(vector<Solution>& bestsol, const vector<Solution>& cursv) {
 
 /**
  * Mutation
- * 바로 옆에 있는 숫자와 같은 숫자가 되도록 유도
- * 돌연변이 확률은 generateChild에서 정하기
  */
 int selectNum(string s[], int i, int j) {
 	int maxv = 0;
@@ -222,18 +218,56 @@ int selectNum(string s[], int i, int j) {
 
 /**
  * 기존 solution을 가지고 이웃해 생성
- * 바꿀 Row와 Column을 randomly하게 선택하게 하고 그 수를 selectNum으로 선택
+ * 1. 전체를 탐색해서 특정 확률로 원소를 변경하는 solution 1개와
+ * 2. 기존 solution에서 특정확률에 의해 인접한 자리를 바꾸는 solution 중 더 높은거 채택
  * @param{sol} : 기존 solution
  */
 
 Solution generateNeibor(Solution* sol) {
-	Solution neighbor(sol->gene);
-	int r = genRandom(R-1);
-	int c = genRandom(C-1);
+	//1.
+	Solution neighbor1(sol->gene);
+	int selectp = 2; //selectp% 확률로 값을 바꿈
+	for(int r=0; r<R; r++) {
+		for(int c=0; c<C; c++) {
+			int p = genRandom(100);
+			if (p <= selectp) { // 2-1.의 mutation 진행
+				char newnum = (char)(selectNum(neighbor1.gene, r, c) + 48);
+				neighbor1.gene[r][c] = newnum;
+			}
 
-	char newnum = (char)(selectNum(neighbor.gene, r, c) + 48);
-	neighbor.gene[r][c] = newnum;
-	return (neighbor);
+			
+		}
+	}
+
+	//2.
+	Solution neighbor2(sol->gene);
+	selectp = 1; //selectp% 확률로 자리를 바꿈
+	for(int r=0; r<R; r++) {
+		for(int c=0; c<C; c++) {
+			int p;
+			p = genRandom(100);
+			if (p <= selectp && r>0) //상
+				swap(neighbor2.gene[r][c], neighbor2.gene[r-1][c]);
+			else if (p <= selectp*2 && r<R-1) //하
+				swap(neighbor2.gene[r][c], neighbor2.gene[r+1][c]);
+			else if (p <= selectp*3 && c>0) //좌
+				swap(neighbor2.gene[r][c], neighbor2.gene[r][c-1]);
+			else if (p <= selectp*4 && c<C-1) //우
+				swap(neighbor2.gene[r][c], neighbor2.gene[r][c+1]);
+			else if (p <= selectp*5 && r>0 && c>0) //좌상
+				swap(neighbor2.gene[r][c], neighbor2.gene[r-1][c-1]);
+			else if (p <= selectp*6 && r<R-1 && c>0) //좌하
+				swap(neighbor2.gene[r][c], neighbor2.gene[r+1][c-1]);
+			else if (p <= selectp*7 && r>0 && c<C-1) //우상
+				swap(neighbor2.gene[r][c], neighbor2.gene[r-1][c+1]);
+			else if (p <= selectp*8 && r<R-1 && c<C-1) //우하
+				swap(neighbor2.gene[r][c], neighbor2.gene[r+1][c+1]);
+		}
+	}
+
+	if (neighbor1.Fitness() > neighbor2.Fitness())
+		return (neighbor1);
+	return (neighbor2);
 }
 
 
@@ -246,7 +280,7 @@ Solution generateNeibor(Solution* sol) {
 int SimulatedAnnealing(int ti) {
 	// 1. 초기해 (bestsol)
 	vector<Solution> cursv;
-	int randomSize = 0;
+	int randomSize = 1;
 	for(int i=0; i<PSIZE-randomSize; i++) {
 		cursv.push_back(bestsol[i]);
 	}
@@ -258,9 +292,10 @@ int SimulatedAnnealing(int ti) {
 	}
 
     double selectp = 0.8; //selectp보다 p가 높으면 선택함.
-	double r = 0.99; //냉각률
+	double r = 0.995; //냉각률
 	double T = 100000; //온도
-	double limit = 0.000000001;
+	double k = 1.252; //볼츠만 상수
+	double limit = 0.00001;
 
 	int gi = 0;
 	while (T > limit) {
@@ -273,7 +308,7 @@ int SimulatedAnnealing(int ti) {
 					=> 온도에 따라서 선택하게 됨. (온도 ↑, p ↑)
 			*/
 			double costdiff = neighbor.Fitness() - cursv[i].Fitness();
-			double p = exp(costdiff / T);
+			double p = exp(costdiff / (k*T));
 
 			if (p >= selectp) //2-1. 이웃해 채택
 				cursv[i] = neighbor;
