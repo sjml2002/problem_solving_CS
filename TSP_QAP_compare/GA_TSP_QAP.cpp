@@ -84,7 +84,7 @@ bool readTSPLIB(const string& filename){
 
     if(!coordSection) return false;
     if(dimension <= 0) return false;
-    if(dimension >= 1000) return false;
+    if(dimension >= 100) return false; //도시 x개 이상이면 스킵 (너무 많아서 시간 오래걸림)
     if(edgeType != "EUC_2D") return false;
 
     tsp.n = dimension;
@@ -346,7 +346,7 @@ int main(){
            << "QAP_mean,QAP_std,QAP_best,QAP_worst,QAP_timeMS_mean,QAP_timeMS_std,QAP_timeMS_best,QAP_timeMS_worst\n";
 
     vector<fs::path> files = list_tsp_files("./TSPLIB/");
-    int testcase = 100;
+    int testcase = 30;
 
     for(const auto& p : files){
         string inst = p.stem().string();
