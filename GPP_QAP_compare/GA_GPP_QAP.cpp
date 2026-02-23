@@ -9,10 +9,8 @@ namespace fs = std::filesystem;
    CONFIG (Windows에서 여기만 바꿔서 사용)
    ========================================================= */
 
-// 실험 반복 횟수(Trials)
 static const int TRIALS = 30;
 
-// GA 파라미터
 static const int POP = 1000;
 static const int GEN = 5000;
 static const int ELITE = 2;
@@ -23,21 +21,12 @@ static const int MUT_K_STAG = 10;
 static const int IMMIGRANTS = 20;
 static const int STAG_LIMIT = 200;
 
-// 진행 출력 주기 (0이면 출력 안함)
 static const int PRINT_EVERY = 50;
 
-// 너무 큰 인스턴스 스킵 기준 (0이면 제한 없음)
-// n(정점수) 제한
 static const int MAX_N = 600;
-// unique undirected edges(간선 수) 제한
 static const size_t MAX_EDGES = 12000;
 
-// QAP 평가 방식
-// - false: sparse(간선만) 평가(빠름)
-// - true : dense(이중합) 평가(느림, n 커지면 매우 느림)
 static const bool QAP_EVAL_DENSE = false;
-
-// dense에서 안전장치 (메모리/시간 폭발 방지)
 static const int DENSE_N_HARD_LIMIT = 4000;
 
 /* ================= RNG ================= */
@@ -65,7 +54,6 @@ static inline string trim(const string& s){
 }
 
 static inline bool parseCoordToken(string tok, double& x, double& y){
-    // "(0.488964,0.149470)" -> 0.488964 0.149470
     if(!tok.empty() && tok.front()=='(') tok.erase(tok.begin());
     if(!tok.empty() && tok.back()==')') tok.pop_back();
     for(char& c: tok) if(c==',') c=' ';
@@ -77,21 +65,19 @@ static inline bool parseCoordToken(string tok, double& x, double& y){
 
 struct GPPInstance {
     int n = 0;
-    vector<pair<double,double>> coord;     // optional
+    vector<pair<double,double>> coord;
     vector<pair<int,int>> edges;           // undirected unique edges (u<v), 0-indexed
 } gpp;
 
 struct QAPDerived {
     int n = 0;
-    int k = 0;                  // n/2
-    vector<uint8_t> F;          // dense adjacency (optional)
-    vector<pair<int,int>> arcs; // directed arcs for sparse evaluation
+    int k = 0;                             // n/2
+    vector<uint8_t> F;                     // dense adjacency (optional)
+    vector<pair<int,int>> arcs;            // store each undirected edge ONCE (u<v)
     bool hasDenseF = false;
 } qap;
 
-/* ================= GPPLIB Reader (with limits) =================
-   Each line: VertexID (x,y) Degree adj1 adj2 ...
-*/
+/* ================= GPPLIB Reader (with limits) ================= */
 
 bool readGPPLIB_limited(const string& filename, int maxN, size_t maxEdges, string& reason){
     ifstream in(filename);
@@ -104,7 +90,7 @@ bool readGPPLIB_limited(const string& filename, int maxN, size_t maxEdges, strin
     edgeSet.reserve(1<<16);
 
     int maxId = 0;
-    vector<pair<double,double>> coordTmp(1); // 1-indexed
+    vector<pair<double,double>> coordTmp(1);
 
     string line;
     while(getline(in, line)){
@@ -123,7 +109,7 @@ bool readGPPLIB_limited(const string& filename, int maxN, size_t maxEdges, strin
 
         if(maxN > 0 && maxId > maxN){
             reason = "too_large_n";
-            return false; // early abort
+            return false;
         }
 
         if((int)coordTmp.size() <= u) coordTmp.resize(u+1, {0.0,0.0});
@@ -141,7 +127,7 @@ bool readGPPLIB_limited(const string& filename, int maxN, size_t maxEdges, strin
 
             if(maxN > 0 && maxId > maxN){
                 reason = "too_large_n";
-                return false; // early abort
+                return false;
             }
 
             if(u == v) continue;
@@ -151,7 +137,7 @@ bool readGPPLIB_limited(const string& filename, int maxN, size_t maxEdges, strin
 
             if(maxEdges > 0 && edgeSet.size() > maxEdges){
                 reason = "too_large_edges";
-                return false; // early abort
+                return false;
             }
         }
     }
@@ -203,12 +189,8 @@ bool buildQAP_from_GPP_bisection(bool buildDenseF){
     qap.n = n;
     qap.k = n/2;
 
-    qap.arcs.clear();
-    qap.arcs.reserve(gpp.edges.size()*2);
-    for(auto [u,v] : gpp.edges){
-        qap.arcs.push_back({u,v});
-        qap.arcs.push_back({v,u});
-    }
+    // 핵심 수정: undirected edge를 한 번만 저장 (u<v)
+    qap.arcs = gpp.edges; // already stored as u<v
 
     qap.hasDenseF = buildDenseF;
     qap.F.clear();
@@ -217,17 +199,13 @@ bool buildQAP_from_GPP_bisection(bool buildDenseF){
         qap.F.assign((size_t)n*n, 0);
         for(auto [u,v] : gpp.edges){
             qap.F[(size_t)u*n + v] = 1;
-            qap.F[(size_t)v*n + u] = 1;
+            qap.F[(size_t)v*n + u] = 1; // dense는 대칭으로 둬도 OK (이중합이면 2배가 될 수 있음)
         }
     }
     return true;
 }
 
-/* ================= Cost (same encoding) =================
-   Encoding is permutation p:
-   p[i] = location assigned to vertex i.
-   Induced bisection partition: part(i) = (p[i] < k).
-*/
+/* ================= Cost (same encoding) ================= */
 
 static inline ll costGPP_fromPerm(const vector<int>& p){
     int k = gpp.n/2;
@@ -238,15 +216,18 @@ static inline ll costGPP_fromPerm(const vector<int>& p){
     return cut;
 }
 
+// 핵심 수정: arcs가 이제 u<v 한 번만 있으므로 결과가 cut-edge 수와 같은 스케일
 static inline ll costQAP_sparse(const vector<int>& p){
     int k = qap.k;
     ll s = 0;
     for(auto [u,v] : qap.arcs){
         s += ((p[u] < k) ^ (p[v] < k));
     }
-    return s; // usually 2*cut
+    return s;
 }
 
+// dense를 쓰면 (대칭 F에 대해) 이중합에서 2배가 다시 생길 수 있음.
+// (지금 설정은 QAP_EVAL_DENSE=false라 영향 없음)
 static inline ll costQAP_dense(const vector<int>& p){
     int n = qap.n;
     int k = qap.k;
@@ -468,15 +449,9 @@ int main(){
     }
 
     GAParams P;
-    P.POP = POP;
-    P.GEN = GEN;
-    P.ELITE = ELITE;
-    P.PX = PX;
-    P.PM = PM;
-    P.MUT_K = MUT_K;
-    P.MUT_K_STAG = MUT_K_STAG;
-    P.IMMIGRANTS = IMMIGRANTS;
-    P.STAG_LIMIT = STAG_LIMIT;
+    P.POP = POP; P.GEN = GEN; P.ELITE = ELITE; P.PX = PX; P.PM = PM;
+    P.MUT_K = MUT_K; P.MUT_K_STAG = MUT_K_STAG;
+    P.IMMIGRANTS = IMMIGRANTS; P.STAG_LIMIT = STAG_LIMIT;
     P.PRINT_EVERY = PRINT_EVERY;
 
     cout << "Seed=" << g_seed
