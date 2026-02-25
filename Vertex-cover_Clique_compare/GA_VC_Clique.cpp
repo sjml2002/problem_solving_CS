@@ -1,5 +1,5 @@
-// vc_clique_ga_onecsv_plus_global_summary.cpp
-// Build: g++ -std=c++17 -O2 vc_clique_ga_onecsv_plus_global_summary.cpp -o run
+// vc_clique_ga_direct_complement_vc_onecsv_plus_global_summary.cpp
+// Build: g++ -std=c++17 -O2 vc_clique_ga_direct_complement_vc_onecsv_plus_global_summary.cpp -o run
 //
 // Run:
 //   ./run --graph_dir GRAPHLIB --out_dir results --trials 30 --seed 0 --time_limit_ms 1000
@@ -14,6 +14,16 @@
 // Outputs:
 //   results/instance_vc_clique_both.csv
 //   results/summary_global_vc_clique_both.csv
+//
+// What is computed per instance (each repeated Trials times):
+//  (1) VC direct on G:             GA solves Vertex Cover on base graph (minimize |C|)
+//  (1') VC -> Clique path:         GA solves Clique on complement(G) (maximize |S|), then map back VC size = n - |S| [page:0]
+//  (2) Clique direct on G:         GA solves Clique on base graph (maximize |S|)
+//  (2') Clique -> VC path (FIXED): GA solves Vertex Cover directly on complement(G) (minimize |C'|)
+//                                  using complement-edge uncovered-pair repair,
+//                                  then map back Clique size in base = n - |C'|
+//
+// Global summary is pooled over ALL (instance × trial) samples (B).
 
 #include <algorithm>
 #include <chrono>
@@ -114,7 +124,7 @@ static bool is_vertex_cover_on_base(const Graph &G, const vector<uint8_t> &inCov
     return true;
 }
 
-// -------- greedy decoders used as GA repair ----------
+// -------- greedy decoders used as GA repair (for clique GA) ----------
 static vector<int> greedy_clique_from_candidates_base(const Graph &G, const vector<int> &cand, std::mt19937 &rng) {
     if (cand.empty()) return {};
 
@@ -233,7 +243,9 @@ static GAOutcome ga_max_clique(const Graph &G, bool onComplement, uint32_t seed,
         return (double)decodedClique.size();
     };
 
+    // initial evaluation
     for (int i = 0; i < P.pop; i++) {
+        if (now_ms() - t0 >= time_limit_ms) break;
         vector<int> dec;
         fit[i] = eval(pop[i], dec);
         if ((int)dec.size() > bestSize) {
@@ -247,6 +259,7 @@ static GAOutcome ga_max_clique(const Graph &G, bool onComplement, uint32_t seed,
     nextPop.reserve(P.pop);
 
     while (now_ms() - t0 < time_limit_ms) {
+        // sort indices by fitness desc
         vector<int> idx(P.pop);
         for (int i = 0; i < P.pop; i++) idx[i] = i;
         sort(idx.begin(), idx.end(), [&](int a, int b){ return fit[a] > fit[b]; });
@@ -256,6 +269,8 @@ static GAOutcome ga_max_clique(const Graph &G, bool onComplement, uint32_t seed,
 
         std::bernoulli_distribution doCross(P.pcross);
         while ((int)nextPop.size() < P.pop) {
+            if (now_ms() - t0 >= time_limit_ms) break;
+
             int a = tournament_select(fit, rng, P.tourn);
             int b = tournament_select(fit, rng, P.tourn);
 
@@ -273,6 +288,7 @@ static GAOutcome ga_max_clique(const Graph &G, bool onComplement, uint32_t seed,
         pop.swap(nextPop);
 
         for (int i = 0; i < P.pop; i++) {
+            if (now_ms() - t0 >= time_limit_ms) break;
             vector<int> dec;
             fit[i] = eval(pop[i], dec);
             if ((int)dec.size() > bestSize) {
@@ -291,9 +307,77 @@ static GAOutcome ga_max_clique(const Graph &G, bool onComplement, uint32_t seed,
     return out;
 }
 
-// -------- GA: MIN-VERTEX-COVER on base or complement (implicit) ----------
-// onComplement=false: repair to cover all base edges
-// onComplement=true : cover in complement <-> V\C is clique in base; repair by extracting clique from V\C and rebuilding C
+// ======== Complement VC "direct" repair utilities ========
+// In complement graph, an edge exists between u and v iff u!=v and (u,v) is NOT an edge in base G.
+// For a vertex cover C' in complement, there must be no complement-edge with both endpoints outside C'.
+// That means: for U = V \ C', there must be NO pair (u,v) in U with !G.hasEdge(u,v).
+// I.e., U must be a clique in base. [page:0]
+
+static inline int complement_degree(const Graph& G, int v) {
+    // deg in complement = (n-1) - deg in base
+    return (G.n - 1) - (int)G.adj[v].size();
+}
+
+// Try to find a violating pair (u,v) in U such that !hasEdge(u,v) in base, meaning (u,v) is an uncovered edge in complement.
+// Hybrid search: random pairs first, then deterministic marking scan.
+static bool find_uncovered_complement_edge_pair(const Graph& G,
+                                               const vector<int>& U,
+                                               const vector<uint8_t>& inU,
+                                               std::mt19937& rng,
+                                               int random_tries,
+                                               int& out_u, int& out_v,
+                                               int64_t t0, int64_t time_limit_ms) {
+    out_u = -1; out_v = -1;
+    int sz = (int)U.size();
+    if (sz < 2) return false;
+
+    // 1) random probing
+    for (int t = 0; t < random_tries; t++) {
+        if (now_ms() - t0 >= time_limit_ms) return false;
+        int a = U[(int)(rng() % sz)];
+        int b = U[(int)(rng() % sz)];
+        if (a == b) continue;
+        if (!G.hasEdge(a, b)) { out_u = a; out_v = b; return true; }
+    }
+
+    // 2) deterministic scan using marking neighbors-in-U
+    vector<uint8_t> mark(G.n, 0);
+    for (int a : U) {
+        if (now_ms() - t0 >= time_limit_ms) return false;
+
+        // if a is connected to everyone in U (clique-wise), skip quickly if possible:
+        // degInU == |U|-1 means no violation with a as endpoint
+        int degInU = 0;
+        for (int nb : G.adj[a]) degInU += inU[nb] ? 1 : 0;
+        if (degInU == sz - 1) continue;
+
+        // mark N(a) ∩ U plus a
+        for (int nb : G.adj[a]) if (inU[nb]) mark[nb] = 1;
+        mark[a] = 1;
+
+        // find b in U not marked => non-edge (a,b) in base => edge in complement
+        for (int b : U) {
+            if (!mark[b]) {
+                out_u = a; out_v = b;
+                // unmark
+                for (int nb : G.adj[a]) if (inU[nb]) mark[nb] = 0;
+                mark[a] = 0;
+                return true;
+            }
+        }
+
+        // unmark
+        for (int nb : G.adj[a]) if (inU[nb]) mark[nb] = 0;
+        mark[a] = 0;
+    }
+    return false;
+}
+
+// -------- GA: MIN-VERTEX-COVER on base or complement (DIRECT complement VC) ----------
+// onComplement=false: standard base VC repair (cover all base edges, then prune)
+// onComplement=true : DIRECT complement VC repair:
+//                     repeatedly find uncovered complement edge (u,v) (i.e., non-edge in base among uncovered vertices)
+//                     and add one endpoint to cover to cover that complement edge.
 static GAOutcome ga_min_vertex_cover(const Graph &G, bool onComplement, uint32_t seed,
                                      int64_t time_limit_ms, const GAParams &P) {
     int64_t t0 = now_ms();
@@ -314,15 +398,20 @@ static GAOutcome ga_min_vertex_cover(const Graph &G, bool onComplement, uint32_t
     int bestSize = 1e9;
 
     auto repair_base_cover = [&](vector<uint8_t> C) -> vector<uint8_t> {
+        // cover uncovered base edges
         for (auto &e : G.edges) {
+            if (now_ms() - t0 >= time_limit_ms) break;
             int u = e.first, v = e.second;
             if (!C[u] && !C[v]) {
                 if (G.adj[u].size() >= G.adj[v].size()) C[u] = 1;
                 else C[v] = 1;
             }
         }
+
+        // pruning pass (expensive: O(n*m) worst-case)
         vector<uint8_t> C2 = C;
         for (int v = 0; v < n; v++) {
+            if (now_ms() - t0 >= time_limit_ms) break;
             if (!C2[v]) continue;
             C2[v] = 0;
             if (!is_vertex_cover_on_base(G, C2)) C2[v] = 1;
@@ -330,29 +419,93 @@ static GAOutcome ga_min_vertex_cover(const Graph &G, bool onComplement, uint32_t
         return C2;
     };
 
-    auto repair_complement_cover = [&](vector<uint8_t> C) -> vector<uint8_t> {
+    auto repair_complement_cover_direct = [&](vector<uint8_t> C) -> vector<uint8_t> {
+        // U = vertices outside cover in complement
+        vector<uint8_t> inU(n, 0);
         vector<int> U;
         U.reserve(n);
-        for (int v = 0; v < n; v++) if (!C[v]) U.push_back(v);
+        for (int v = 0; v < n; v++) {
+            if (!C[v]) { inU[v] = 1; U.push_back(v); }
+        }
 
-        vector<int> clique = greedy_clique_from_candidates_base(G, U, rng);
+        // pos for O(1) remove from U
+        vector<int> pos(n, -1);
+        for (int i = 0; i < (int)U.size(); i++) pos[U[i]] = i;
 
-        vector<uint8_t> C2(n, 1);
-        for (int v : clique) C2[v] = 0;
-        return C2;
+        auto remove_from_U = [&](int v) {
+            int i = pos[v];
+            if (i < 0) return;
+            int last = U.back();
+            U[i] = last;
+            pos[last] = i;
+            U.pop_back();
+            pos[v] = -1;
+            inU[v] = 0;
+        };
+
+        // keep repairing until U becomes a clique in base (i.e., no uncovered complement edges remain)
+        while ((int)U.size() >= 2) {
+            if (now_ms() - t0 >= time_limit_ms) break;
+
+            int u = -1, v = -1;
+            bool found = find_uncovered_complement_edge_pair(G, U, inU, rng,
+                                                            /*random_tries=*/200,
+                                                            u, v,
+                                                            t0, time_limit_ms);
+            if (!found) break; // no violation found => assume feasible
+
+            // uncovered complement edge (u,v) exists; to cover it, add one endpoint to cover
+            // heuristic: pick endpoint with larger complement degree => smaller base degree
+            int pick = (complement_degree(G, u) >= complement_degree(G, v)) ? u : v;
+
+            C[pick] = 1;
+            remove_from_U(pick);
+        }
+
+        // optional light pruning on complement cover:
+        // try removing a small number of vertices from cover; verify by searching for violations again
+        // (kept small to avoid heavy overhead)
+        int prune_trials = 30;
+        for (int it = 0; it < prune_trials; it++) {
+            if (now_ms() - t0 >= time_limit_ms) break;
+
+            // pick random vertex currently in cover
+            int v = (int)(rng() % n);
+            if (!C[v]) continue;
+
+            // tentatively remove
+            C[v] = 0;
+
+            // rebuild U quickly for verification (cheap enough for small prune_trials)
+            vector<uint8_t> inU2(n, 0);
+            vector<int> U2;
+            U2.reserve(n);
+            for (int i = 0; i < n; i++) if (!C[i]) { inU2[i] = 1; U2.push_back(i); }
+
+            int a=-1,b=-1;
+            bool viol = find_uncovered_complement_edge_pair(G, U2, inU2, rng,
+                                                           /*random_tries=*/100,
+                                                           a, b,
+                                                           t0, time_limit_ms);
+            if (viol) C[v] = 1; // removal broke feasibility, rollback
+        }
+
+        return C;
     };
 
     auto eval = [&](const vector<uint8_t> &chrom, vector<uint8_t> &decodedCover, int &coverSize) -> double {
         decodedCover = chrom;
         if (!onComplement) decodedCover = repair_base_cover(decodedCover);
-        else decodedCover = repair_complement_cover(decodedCover);
+        else decodedCover = repair_complement_cover_direct(decodedCover);
 
         coverSize = 0;
         for (int v = 0; v < n; v++) coverSize += decodedCover[v] ? 1 : 0;
         return -(double)coverSize; // maximize negative size
     };
 
+    // initial evaluation
     for (int i = 0; i < P.pop; i++) {
+        if (now_ms() - t0 >= time_limit_ms) break;
         vector<uint8_t> dec;
         int sz = 0;
         fit[i] = eval(pop[i], dec, sz);
@@ -376,6 +529,8 @@ static GAOutcome ga_min_vertex_cover(const Graph &G, bool onComplement, uint32_t
 
         std::bernoulli_distribution doCross(P.pcross);
         while ((int)nextPop.size() < P.pop) {
+            if (now_ms() - t0 >= time_limit_ms) break;
+
             int a = tournament_select(fit, rng, P.tourn);
             int b = tournament_select(fit, rng, P.tourn);
 
@@ -393,6 +548,7 @@ static GAOutcome ga_min_vertex_cover(const Graph &G, bool onComplement, uint32_t
         pop.swap(nextPop);
 
         for (int i = 0; i < P.pop; i++) {
+            if (now_ms() - t0 >= time_limit_ms) break;
             vector<uint8_t> dec;
             int sz = 0;
             fit[i] = eval(pop[i], dec, sz);
@@ -491,7 +647,7 @@ static double get_arg_double(int argc, char **argv, const string &key, double de
     return stod(s);
 }
 
-// -------- progress printing (same-line update + flush) ----------
+// -------- progress printing ----------
 static void print_progress_line(const string& inst, int inst_i, int inst_total,
                                 int trial_i, int trials, int64_t inst_start_ms,
                                 int progress_detail,
@@ -532,10 +688,8 @@ static void write_header_instance(ofstream &out) {
 static void write_header_summary(ofstream &out) {
     out
     << "TotalSamples,NumInstances,"
-    // pooled graph stats across instances (n,m are per-instance, not per-sample)
     << "n_mean,n_std,n_best,n_worst,"
     << "m_mean,m_std,m_best,m_worst,"
-    // global pooled (all instance×trial samples)
     << "VC_mean,VC_std,VC_best,VC_worst,"
     << "VC_timeMS_mean,VC_timeMS_std,VC_timeMS_best,VC_timeMS_worst,"
     << "VC_fromClique_mean,VC_fromClique_std,VC_fromClique_best,VC_fromClique_worst,"
@@ -588,7 +742,7 @@ int main(int argc, char **argv) {
     vector<double> G_clq_base_obj, G_clq_base_time;
     vector<double> G_clq_fromVC_obj, G_clq_fromVC_time;
 
-    // per-instance n,m stats (not per sample)
+    // per-instance n,m stats
     vector<double> I_n, I_m;
 
     int inst_total = (int)files.size();
@@ -614,7 +768,7 @@ int main(int argc, char **argv) {
         I_n.push_back((double)G.n);
         I_m.push_back((double)G.m());
 
-        // per-instance trial samples
+        // per-instance samples across trials
         vector<double> vc_base_obj, vc_base_time;
         vector<double> vc_fromClq_obj, vc_fromClq_time;
         vector<double> clq_base_obj, clq_base_time;
@@ -642,7 +796,7 @@ int main(int argc, char **argv) {
             vc_base_time.push_back((double)vc.time_ms);
             best_vc_base = min(best_vc_base, vc.bestObj);
 
-            // (1') VC -> Clique transform: solve clique on complement(G), map back VC size = n - |S|
+            // (1') VC -> Clique: solve clique on complement(G), map back VC size = n - |S| [page:0]
             auto clqComp = ga_max_clique(G, /*onComplement=*/true, seed, time_ms, P);
             int mappedVC = G.n - (int)clqComp.bestSet.size();
             vc_fromClq_obj.push_back((double)mappedVC);
@@ -655,14 +809,14 @@ int main(int argc, char **argv) {
             clq_base_time.push_back((double)clq.time_ms);
             best_clq_base = max(best_clq_base, clq.bestObj);
 
-            // (2') Clique -> VC transform: solve VC on complement(G), map back clique size = n - |C'|
+            // (2') Clique -> VC (fixed): solve VC directly on complement(G), then map back clique size = n - |C'|
             auto vcComp = ga_min_vertex_cover(G, /*onComplement=*/true, seed, time_ms, P);
             int mappedClique = G.n - vcComp.bestObj;
             clq_fromVC_obj.push_back((double)mappedClique);
             clq_fromVC_time.push_back((double)vcComp.time_ms);
             best_clq_fromVC = max(best_clq_fromVC, mappedClique);
 
-            // Global pooled append (B): append raw trial sample (instance×trial)
+            // Global pooled append (B): raw trial sample (instance×trial)
             G_vc_base_obj.push_back((double)vc.bestObj);
             G_vc_base_time.push_back((double)vc.time_ms);
             G_vc_fromClq_obj.push_back((double)mappedVC);
@@ -720,7 +874,7 @@ int main(int argc, char **argv) {
     Stat4 g_clq_fromVC    = compute_stats(G_clq_fromVC_obj, false);
     Stat4 g_clq_fromVC_t  = compute_stats(G_clq_fromVC_time, true);
 
-    int totalSamples = (int)G_vc_base_obj.size(); // = parsed_instances * trials
+    int totalSamples = (int)G_vc_base_obj.size(); // = parsed_instances * trials (if no skips)
     sum << totalSamples << "," << parsed_instances << ","
         << sn.mean << "," << sn.stdev << "," << sn.best << "," << sn.worst << ","
         << sm.mean << "," << sm.stdev << "," << sm.best << "," << sm.worst << ","
