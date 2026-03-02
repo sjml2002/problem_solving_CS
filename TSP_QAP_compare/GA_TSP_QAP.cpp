@@ -127,8 +127,10 @@ void buildQAP_from_TSP_directedCycleFlow(){
     qap.dist = tsp.dist;
 
     qap.flow.assign(n, vector<ll>(n, 0));
-    for(int i=0;i<n-1;i++) qap.flow[i][i+1] = 1;
-    qap.flow[n-1][0] = 1;
+    for(int i=0; i<n; i++) {
+        for(int j=0; j<n; j++)
+            if (i!=j) qap.flow[i][j] = 1;
+    }
 }
 
 /* ================= Cost ================= */
