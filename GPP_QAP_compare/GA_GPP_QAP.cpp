@@ -199,7 +199,6 @@ bool buildQAP_from_GPP_bisection(bool buildDenseF){
         qap.F.assign((size_t)n*n, 0);
         for(auto [u,v] : gpp.edges){
             qap.F[(size_t)u*n + v] = 1;
-            qap.F[(size_t)v*n + u] = 1; // dense는 대칭으로 둬도 OK (이중합이면 2배가 될 수 있음)
         }
     }
     return true;
