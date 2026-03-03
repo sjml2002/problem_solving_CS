@@ -128,8 +128,7 @@ void buildQAP_from_TSP_directedCycleFlow(){
 
     qap.flow.assign(n, vector<ll>(n, 0));
     for(int i=0; i<n; i++) {
-        for(int j=0; j<n; j++)
-            if (i!=j) qap.flow[i][j] = 1;
+        qap.flow[i][(i+1)%n] = 1;  // ← directed cycle: 각 노드에서 다음 노드로만 1
     }
 }
 
@@ -382,7 +381,7 @@ int main(){
         GAParams P;
         // 필요하면 여기서 P 조정
         // P.POP = 1000; P.GEN = 5000;
-        P.POP = 1000;
+        P.POP = 2000;
         P.GEN = 5000;
 
         for(int ti=1; ti<=testcase; ti++){

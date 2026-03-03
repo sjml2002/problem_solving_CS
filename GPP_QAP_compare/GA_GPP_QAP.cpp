@@ -11,7 +11,7 @@ namespace fs = std::filesystem;
 
 static const int TRIALS = 30;
 
-static const int POP = 1000;
+static const int POP = 2000;
 static const int GEN = 5000;
 static const int ELITE = 2;
 static const double PX = 0.9;
@@ -26,7 +26,7 @@ static const int PRINT_EVERY = 50;
 static const int MAX_N = 600;
 static const size_t MAX_EDGES = 12000;
 
-static const bool QAP_EVAL_DENSE = false;
+static const bool QAP_EVAL_DENSE = true;
 static const int DENSE_N_HARD_LIMIT = 4000;
 
 /* ================= RNG ================= */
