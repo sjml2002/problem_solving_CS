@@ -381,7 +381,7 @@ int main(){
         GAParams P;
         // 필요하면 여기서 P 조정
         // P.POP = 1000; P.GEN = 5000;
-        P.POP = 2000;
+        P.POP = 1000;
         P.GEN = 5000;
 
         for(int ti=1; ti<=testcase; ti++){
