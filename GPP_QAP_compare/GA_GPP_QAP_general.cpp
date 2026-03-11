@@ -29,10 +29,10 @@ namespace fs = std::filesystem;
 CONFIG
 ========================================================= */
 
-static const int TRIALS = 30;
+static const int TRIALS = 5;
 
-static const int POP = 500;
-static const int GEN = 1000;
+static const int POP = 200;
+static const int GEN = 200;
 static const int ELITE = 2;
 
 static const double PX = 0.9;
@@ -53,10 +53,10 @@ static uint32_t g_seed =
 
 mt19937 gen(g_seed);
 
-static inline int rndInt(int lo,int hi){
-    uniform_int_distribution<int> dis(lo,hi);
-    return dis(gen);
-}
+//static inline int rndInt(int lo,int hi){
+//    uniform_int_distribution<int> dis(lo,hi);
+//    return dis(gen);
+//}
 
 static inline double rndReal(){
     uniform_real_distribution<double> dis(0.0,1.0);
@@ -193,15 +193,11 @@ bool buildQAP_from_GPP(){
 /* ================= COST ================= */
 
 ll costGPP_comb(const vector<int>& comb){
-
     int n=gpp.n;
-
     vector<uint8_t> inA(n,0);
-
     for(int v:comb) inA[v]=1;
 
     ll cut=0;
-
     for(auto [u,v]:gpp.edges)
         cut+=(inA[u]^inA[v]);
 
@@ -209,13 +205,16 @@ ll costGPP_comb(const vector<int>& comb){
 }
 
 ll costQAP(const vector<int>& p){
-
+    int n=qap.n;
     int k=qap.k;
 
-    ll s=0;
+    vector<uint8_t> inA(n,0);
+    for(int i=0;i<k;i++)
+        inA[p[i]] = 1;
 
+    ll s=0;
     for(auto [u,v]:qap.arcs)
-        s+=((p[u]<k)^(p[v]<k));
+        s += (inA[u] ^ inA[v]);
 
     return s;
 }
@@ -236,19 +235,20 @@ struct SolutionQAP{
 
 void mutateCombination(vector<int>& comb,int n,int k){
 
+    static vector<int> mark(MAX_N);
+    fill(mark.begin(), mark.begin()+n, 0);
+
+    for(int v:comb) mark[v]=1;
+
     int idx=rndInt(0,k-1);
 
-    unordered_set<int> used(comb.begin(),comb.end());
-
     int v;
-
     do{
         v=rndInt(0,n-1);
-    }while(used.count(v));
+    }while(mark[v]);
 
     comb[idx]=v;
 }
-
 void mutatePermutation(vector<int>& p){
 
     int n=p.size();
@@ -287,8 +287,8 @@ SolutionGPP runGA_GPP(ofstream& genlog){
 
     for(int g=0;g<GEN;g++){
 
-        sort(pop.begin(),pop.end(),
-        [](auto&a,auto&b){return a.cost<b.cost;});
+        sort(pop.begin(),pop.end(), [](const auto& a, const auto& b){return a.cost < b.cost;});
+
 
         if(pop[0].cost<best.cost)
             best=pop[0];
@@ -384,6 +384,8 @@ SolutionQAP runGA_QAP(ofstream& genlog){
             else
                 child.p=pop[a].p;
 
+            
+
             if(rndReal()<PM)
                 mutatePermutation(child.p);
 
@@ -420,8 +422,8 @@ vector<fs::path> list_gpp_files(const fs::path& dir){
 
 int main(){
 
-    ios::sync_with_stdio(false);
-    cin.tie(nullptr);
+//    ios::sync_with_stdio(false);
+//    cin.tie(nullptr);
 
     fs::create_directories("./results");
 

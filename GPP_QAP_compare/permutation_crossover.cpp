@@ -9,39 +9,82 @@ using std::vector;
 
 extern std::mt19937 gen;
 
+static inline int rndInt(int lo,int hi){
+    std::uniform_int_distribution<int> dis(lo,hi);
+    return dis(gen);
+}
+
+void repairPermutation(vector<int>& p){
+
+    int n = p.size();
+
+    vector<int> cnt(n,0);
+
+    for(int x:p)
+        if(0<=x && x<n)
+            cnt[x]++;
+
+    vector<int> missing;
+
+    for(int i=0;i<n;i++)
+        if(cnt[i]==0)
+            missing.push_back(i);
+
+    int ptr=0;
+
+    for(int i=0;i<n;i++){
+        if(cnt[p[i]]>1){
+            cnt[p[i]]--;
+            p[i] = missing[ptr++];
+        }
+    }
+}
+
+
 /* ========== PMX ========== */
-inline vector<int> pmx(const vector<int>& A, const vector<int>& B) {
-    int n = (int)A.size();
-    std::uniform_int_distribution<int> cutDis(0, n-1);
-    int c1 = cutDis(gen), c2 = cutDis(gen);
-    if (c1 > c2) std::swap(c1, c2);
+vector<int> pmx(const vector<int>& p1, const vector<int>& p2){
+
+    int n = p1.size();
 
     vector<int> child(n, -1);
-    // copy segment from A
-    for (int i = c1; i <= c2; ++i)
-        child[i] = A[i];
 
-    // mapping A <-> B in [c1,c2]
-    std::unordered_map<int,int> mapAB;
-    mapAB.reserve(c2-c1+1);
-    for (int i = c1; i <= c2; ++i)
-        mapAB[B[i]] = A[i];
+    int l = rndInt(0, n-2);
+    int r = rndInt(l+1, n-1);
 
-    auto mapValue = [&](int v)->int {
-        auto it = mapAB.find(v);
-        while(it != mapAB.end()) {
-            v = it->second;
-            it = mapAB.find(v);
+    // 1. copy segment
+    for(int i=l;i<=r;i++)
+        child[i] = p1[i];
+
+    // 2. mapping
+    for(int i=l;i<=r;i++){
+
+        int val = p2[i];
+
+        if(find(child.begin()+l, child.begin()+r+1, val) != child.begin()+r+1)
+            continue;
+
+        int pos = i;
+
+        while(true){
+
+            int mapped = p1[pos];
+
+            pos = find(p2.begin(), p2.end(), mapped) - p2.begin();
+
+            if(child[pos] == -1){
+                child[pos] = val;
+                break;
+            }
         }
-        return v;
-    };
-
-    // fill remaining from B with mapping
-    for (int i = 0; i < n; ++i) {
-        if (child[i] != -1) continue;
-        int v = mapValue(B[i]);
-        child[i] = v;
     }
+
+    // 3. fill remaining
+    for(int i=0;i<n;i++)
+        if(child[i] == -1)
+            child[i] = p2[i];
+
+    
+    repairPermutation(child);
 
     return child;
 }
@@ -73,6 +116,9 @@ inline vector<int> ox(const vector<int>& A, const vector<int>& B) {
         }
         idxB = (idxB + 1) % n;
     }
+
+    repairPermutation(child);
+
     return child;
 }
 
@@ -106,6 +152,9 @@ inline vector<int> ox2(const vector<int>& A, const vector<int>& B) {
         int pos = positions[i];
         child[pos] = vals[i];
     }
+
+    repairPermutation(child);
+
     return child;
 }
 
@@ -146,7 +195,6 @@ inline vector<int> edge_recombination(const vector<int>& A, const vector<int>& B
         for (auto& [node, nbrs] : adj) {
             nbrs.erase(current);
         }
-        adj.erase(current);
 
         // 후보 이웃들 중에서 인접 리스트 크기가 가장 작은 것 선택
         int next = -1;
@@ -178,6 +226,9 @@ inline vector<int> edge_recombination(const vector<int>& A, const vector<int>& B
                 }
             }
         }
+
+        adj.erase(current);
+
         current = next;
         child.push_back(current);
     }
@@ -189,6 +240,8 @@ inline vector<int> edge_recombination(const vector<int>& A, const vector<int>& B
             if (!used.count(v)) child.push_back(v);
         }
     }
+
+    repairPermutation(child);
 
     return child;
 }

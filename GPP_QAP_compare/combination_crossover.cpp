@@ -6,32 +6,32 @@
 
 using std::vector;
 
-extern std::mt19937 gen;  // 기존 코드의 전역 RNG를 그대로 재사용한다고 가정
+extern std::mt19937 gen;
 
-// 유틸: combination을 정렬 + 중복 제거한 뒤, size == k로 맞추는 repair
-static inline void repair_combination(vector<int>& comb, int n, int k) {
+static inline void repair_combination(vector<int>& comb, int n, int k)
+{
+    // 1. 중복 제거
     std::sort(comb.begin(), comb.end());
     comb.erase(std::unique(comb.begin(), comb.end()), comb.end());
-
-    if ((int)comb.size() > k) {
+    // 2. 너무 많으면 truncate
+    if ((int)comb.size() > k)
         comb.resize(k);
-    }
-
-    if ((int)comb.size() < k) {
-        std::vector<int> candidates;
-        candidates.reserve(n);
-        int i = 0;
-        for (int v = 0; v < n; ++v) {
-            while (i < (int)comb.size() && comb[i] < v) ++i;
-            if (i < (int)comb.size() && comb[i] == v) continue;
-            candidates.push_back(v);
+    // 3. 현재 사용된 값 표시
+    vector<char> used(n, 0);
+    for (int v : comb)
+        if (0 <= v && v < n)
+            used[v] = 1;
+    // 4. 부족하면 랜덤으로 채움
+    std::uniform_int_distribution<int> dis(0, n - 1);
+    while ((int)comb.size() < k) {
+        int v = dis(gen);
+        if (!used[v]) {
+            used[v] = 1;
+            comb.push_back(v);
         }
-        std::shuffle(candidates.begin(), candidates.end(), gen);
-        int need = k - (int)comb.size();
-        for (int i2 = 0; i2 < need && i2 < (int)candidates.size(); ++i2)
-            comb.push_back(candidates[i2]);
-        std::sort(comb.begin(), comb.end());
     }
+    // 5. 정렬 유지
+    std::sort(comb.begin(), comb.end());
 }
 
 /* ========== One-point crossover ========== */
