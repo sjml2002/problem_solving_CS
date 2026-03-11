@@ -7,16 +7,16 @@
 
 // ----- GPP (Combination encoding) -----
 
-#define GPP_CROSS comb_one_point
+//define GPP_CROSS comb_one_point
 //#define GPP_CROSS comb_two_point
-//#define GPP_CROSS comb_three_point
+#define GPP_CROSS comb_three_point
 //#define GPP_CROSS(A,B,n,k) comb_uniform(A,B,n,k,0.5)
 
 // ----- QAP (Permutation encoding) -----
 
-#define QAP_CROSS pmx
+//define QAP_CROSS pmx
 //#define QAP_CROSS ox
-//#define QAP_CROSS ox2
+#define QAP_CROSS ox2
 //#define QAP_CROSS edge_recombination
 
 

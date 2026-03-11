@@ -158,90 +158,84 @@ inline vector<int> ox2(const vector<int>& A, const vector<int>& B) {
     return child;
 }
 
-/* ========== Edge Recombination Crossover (ERX) ========== */
+/* ========== Fast Edge Recombination Crossover (ERX) ========== */
+
 inline vector<int> edge_recombination(const vector<int>& A, const vector<int>& B) {
+
     int n = (int)A.size();
-    // adjacency list for each gene
-    std::unordered_map<int, std::unordered_set<int>> adj;
+
+    vector<vector<int>> adj(n);
     adj.reserve(n);
 
-    auto add_edge = [&](int u, int v){
+    auto add_edge = [&](int u, int v) {
         if (u == v) return;
-        adj[u].insert(v);
-        adj[v].insert(u);
+        adj[u].push_back(v);
     };
 
     auto build_adj = [&](const vector<int>& P) {
-        for (int i = 0; i < n; ++i) {
+        for (int i = 0; i < n; i++) {
             int v = P[i];
-            int left = P[(i - 1 + n) % n];
-            int right = P[(i + 1) % n];
-            add_edge(v, left);
-            add_edge(v, right);
+            int l = P[(i - 1 + n) % n];
+            int r = P[(i + 1) % n];
+
+            add_edge(v, l);
+            add_edge(v, r);
         }
     };
+
     build_adj(A);
     build_adj(B);
+
+    vector<bool> used(n, false);
 
     vector<int> child;
     child.reserve(n);
 
-    std::uniform_int_distribution<int> idxDis(0, n-1);
-    int current = A[idxDis(gen)];  // 시작점은 임의로 A에서 선택
+    std::uniform_int_distribution<int> dis(0, n - 1);
+    int current = A[dis(gen)];
+
     child.push_back(current);
+    used[current] = true;
 
-    for (int step = 1; step < n; ++step) {
-        // 현재 노드를 인접 리스트에서 제거
-        for (auto& [node, nbrs] : adj) {
-            nbrs.erase(current);
-        }
+    for (int step = 1; step < n; step++) {
 
-        // 후보 이웃들 중에서 인접 리스트 크기가 가장 작은 것 선택
+        // 후보 중에서 아직 사용 안한 것만
         int next = -1;
-        int bestDeg = 1e9;
-        if (!adj.count(current)) {
-            // 인접 정보가 없으면, 아직 방문 안 한 어떤 노드나 랜덤 선택
-            std::vector<int> remaining;
-            remaining.reserve(adj.size());
-            for (auto& kv : adj) remaining.push_back(kv.first);
-            if (remaining.empty()) break;
-            std::uniform_int_distribution<int> rDis(0, (int)remaining.size()-1);
-            next = remaining[rDis(gen)];
-        } else {
-            auto& nbrs = adj[current];
-            if (nbrs.empty()) {
-                std::vector<int> remaining;
-                remaining.reserve(adj.size());
-                for (auto& kv : adj) remaining.push_back(kv.first);
-                if (remaining.empty()) break;
-                std::uniform_int_distribution<int> rDis(0, (int)remaining.size()-1);
-                next = remaining[rDis(gen)];
-            } else {
-                for (int v : nbrs) {
-                    int d = adj.count(v) ? (int)adj[v].size() : 0;
-                    if (d < bestDeg) {
-                        bestDeg = d;
-                        next = v;
-                    }
-                }
+        int best_deg = 1e9;
+
+        for (int v : adj[current]) {
+
+            if (used[v]) continue;
+
+            int deg = 0;
+
+            for (int x : adj[v])
+                if (!used[x])
+                    deg++;
+
+            if (deg < best_deg) {
+                best_deg = deg;
+                next = v;
             }
         }
 
-        adj.erase(current);
+        // 후보가 없으면 랜덤 선택
+        if (next == -1) {
+            vector<int> remaining;
+            remaining.reserve(n);
+
+            for (int i = 0; i < n; i++)
+                if (!used[i])
+                    remaining.push_back(i);
+
+            std::uniform_int_distribution<int> rdis(0, (int)remaining.size() - 1);
+            next = remaining[rdis(gen)];
+        }
 
         current = next;
+        used[current] = true;
         child.push_back(current);
     }
-
-    // 혹시 모자라면 남은 노드들 추가 (방문 안 한 것들)
-    if ((int)child.size() < n) {
-        std::unordered_set<int> used(child.begin(), child.end());
-        for (int v : A) {
-            if (!used.count(v)) child.push_back(v);
-        }
-    }
-
-    repairPermutation(child);
 
     return child;
 }
