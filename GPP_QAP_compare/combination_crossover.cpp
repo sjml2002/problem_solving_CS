@@ -45,7 +45,7 @@ inline vector<int> comb_one_point(const vector<int>& A, const vector<int>& B, in
     for (int i = 0; i < cut; ++i) child.push_back(A[i]);
     for (int i = cut; i < k; ++i) child.push_back(B[i]);
 
-    repair_combination(child, n, k);
+    //repair_combination(child, n, k);
     return child;
 }
 
@@ -62,7 +62,7 @@ inline vector<int> comb_two_point(const vector<int>& A, const vector<int>& B, in
     for (int i = c1; i <= c2; ++i) child.push_back(B[i]);
     for (int i = c2+1; i < k; ++i) child.push_back(A[i]);
 
-    repair_combination(child, n, k);
+    //repair_combination(child, n, k);
     return child;
 }
 
@@ -82,7 +82,7 @@ inline vector<int> comb_three_point(const vector<int>& A, const vector<int>& B, 
     for (int i = c2+1; i <= c3; ++i) child.push_back(A[i]);
     for (int i = c3+1; i < k; ++i) child.push_back(B[i]);
 
-    repair_combination(child, n, k);
+    //repair_combination(child, n, k);
     return child;
 }
 
@@ -97,6 +97,6 @@ inline vector<int> comb_uniform(const vector<int>& A, const vector<int>& B, int 
         else            child.push_back(B[i]);
     }
 
-    repair_combination(child, n, k);
+    //repair_combination(child, n, k);
     return child;
 }

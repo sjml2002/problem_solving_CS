@@ -84,7 +84,7 @@ vector<int> pmx(const vector<int>& p1, const vector<int>& p2){
             child[i] = p2[i];
 
     
-    repairPermutation(child);
+    //repairPermutation(child);
 
     return child;
 }
