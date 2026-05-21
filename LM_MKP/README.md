@@ -16,14 +16,26 @@
     - $x$ 는 아이템을 할당할지 말지를 결정하는 보조 벡터입니다.
 
 - 수식은 다음과 같습니다.  
-$$  max(\sum^n_{j=1}c_jx_j) \,\,\, subject \,\, to \,\, \sum^n_{j=1}a_{ij}x_j ≤ b_i \newline (\,∀i(1≤i≤m)\,\,, \,\,x_j∈\{0, 1\}\,)  $$
+```math
+\max \sum_{j=1}^{n} c_j x_j
+```
+
+```math
+\text{subject to } \sum_{j=1}^{n} a_{ij} x_j \le b_i \quad \forall i \in \{1,\dots,m\}
+```
+
+```math
+x_j \in \{0,1\} \quad \forall j \in \{1,\dots,n\}
+```
 
 ---
 # Lagrangian Multiplier Preliminaries
 - 위 수식에서 -subject to 에 해당하는- 제약사항을 Lagrangian Multiplier를 사용해서 완화시킬 것입니다.
 - Lagrangian Multiplier란, 목적함수 $f(x)$ 와 제약사항 $g(x)$ 가 있을 때, 적당한 $λ$ 를 찾아서 최종 값을 얻어냅니다. 수식으로 나타내자면 다음과 같이 됩니다.
     - $λ$는 $λ≥0$ 인 실수 벡터입니다.  
-$$  res = max(f(x) - λg(x))  $$
+```math
+\mathrm{res}=\max \left(f(x)-\lambda g(x)\right), \quad \lambda \ge 0
+```
     
 ---
 # 우리가 할 것
