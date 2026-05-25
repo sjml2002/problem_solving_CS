@@ -9,7 +9,6 @@ for each of the problems.
 
 
 Problem Name        Best Feasible Solution Value
-
 5.100-00                  24381
 5.100-01                  24274
 5.100-02                  23551
@@ -284,7 +283,6 @@ Problem Name        Best Feasible Solution Value
 
 
 Problem Name     LP optimal
-
 5.100-00        2.4585902722e+04
 5.100-01        2.4538208990e+04
 5.100-02        2.3895828928e+04

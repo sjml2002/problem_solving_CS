@@ -78,7 +78,7 @@ void process_file_with_original_fpls(const std::string &filePath,
 
 int main()
 {
-    std::string fpath = "./MKP_instance";
+    std::string fpath = "./MKP_instances/";
 
     // mkcbres 파일 읽기
     MKCBResults mkcb = read_mkcbres(fpath + "mkcbres.txt");
@@ -101,7 +101,7 @@ int main()
     process_file_with_original_fpls(fpath + "mknapcb8.txt",  "30.250", mkcb, allRuns);
     process_file_with_original_fpls(fpath + "mknapcb9.txt",  "30.500", mkcb, allRuns);
 
-    write_results_csv("fpls_original_results.csv", allRuns);
+    write_results_csv("./results/fpls_original_results.csv", allRuns);
 
     return 0;
 }

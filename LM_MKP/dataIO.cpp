@@ -65,53 +65,82 @@ MKCBResults read_mkcbres(const std::string &filePath)
     }
 
     std::string line;
-    bool inFirstTable = false;
-    bool inSecondTable = false;
+    int phase = 0; 
+    // 0: 아직 첫 번째 테이블 시작 전
+    // 1: 첫 번째 테이블(베스트 feasible) 읽는 중
+    // 2: 첫 번째 테이블 끝, 두 번째 테이블 헤더 찾는 중
+    // 3: 두 번째 테이블(LP optimal) 읽는 중
 
     std::vector<std::pair<std::string, double> > bestFeasibleRows;
     std::vector<std::pair<std::string, double> > lpRows;
 
     while (std::getline(fin, line)) {
-        if (line.find("The first table") != std::string::npos) {
-            inFirstTable = true;
-            inSecondTable = false;
-            continue;
-        }
-        if (line.find("The second table") != std::string::npos) {
-            inFirstTable = false;
-            inSecondTable = true;
+	// 양 끝 공백 제거
+        auto trim = [](std::string &s) {
+            size_t p = s.find_first_not_of(" \t\r\n");
+            if (p == std::string::npos) { s.clear(); return; }
+            size_t q = s.find_last_not_of(" \t\r\n");
+            s = s.substr(p, q - p + 1);
+        };
+        trim(line);
+        if (line.empty()) {
+            // 빈 줄이면, 첫 테이블에서 두 번째 테이블로 넘어가는 경계일 수 있으므로
+            // phase 1 이었던 경우는 2로, phase 3 이면 그대로 둔다.
+            if (phase == 1) phase = 2;
             continue;
         }
 
-        // 데이터 행 파싱: 형식은 "id  value" (공백 또는 탭 구분)
-        std::istringstream iss(line);
-        std::string id;
-        double val;
-        if (!(iss >> id >> val)) {
-            continue; // 데이터가 아니면 건너뛴다.
+        // 헤더 줄 감지
+        if (line.find("Problem Name") == 0) {
+            if (phase == 0) {
+                // 첫 번째 테이블 헤더
+                phase = 1;
+            } else if (phase == 2) {
+                // 두 번째 테이블 헤더
+                phase = 3;
+            }
+            continue;
         }
 
-        if (inFirstTable) {
-            bestFeasibleRows.push_back(std::make_pair(id, val));
-        } else if (inSecondTable) {
-            lpRows.push_back(std::make_pair(id, val));
+        // 실제 데이터 줄 파싱
+        if (phase == 1 || phase == 3) {
+            std::istringstream iss(line);
+            std::string id;
+            double val;
+            if (!(iss >> id >> val)) {
+                continue; // 형식이 안 맞으면 스킵
+            }
+            // id 가 "5.100-00" 같은 형태인지 대략 검사
+            bool looksLikeId = (id.find('.') != std::string::npos &&
+                                id.find('-') != std::string::npos);
+            if (!looksLikeId) continue;
+
+            if (phase == 1) {
+                bestFeasibleRows.emplace_back(id, val);
+            } else { // phase == 3
+                lpRows.emplace_back(id, val);
+            }
         }
+        // phase 0,2 에서는 아무 것도 하지 않음
     }
 
-    // 두 테이블이 동일한 순서/크기라고 가정하고 매칭한다.
+    // 두 테이블을 매칭
     size_t len = std::min(bestFeasibleRows.size(), lpRows.size());
     results.rows.reserve(len);
     for (size_t i = 0; i < len; ++i) {
         MKCBResultRow row;
-        row.instanceId = bestFeasibleRows[i].first;
+        row.instanceId   = bestFeasibleRows[i].first;
         row.bestFeasible = bestFeasibleRows[i].second;
-        row.lpOptimum = lpRows[i].second;
+        row.lpOptimum    = lpRows[i].second;
         results.rows.push_back(row);
     }
 
-    std::cerr << "[INFO] Loaded " << results.rows.size() << " rows from mkcbres." << std::endl;
+    std::cerr << "[INFO] Loaded " << results.rows.size()
+              << " rows from mkcbres." << std::endl;
     return results;
 }
+
+
 
 // 모든 run 결과를 하나의 CSV 로 저장한다.
 // 형식: instance_id,run_index,LP_opt,best_feasible_CB,our_LP,our_best_solution,percent_diff_solution,percent_diff_LP
