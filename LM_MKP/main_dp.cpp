@@ -1,22 +1,16 @@
 #include "dataIO.h"
-#include "original_FPLS.h"
-#include "dp_FPLS.h"
+#include "dp_fpls.h"
+#include "original_FPLS.h"   // g_numRuns, g_numIterations, g_gamma 사용
 
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <vector>
 
-// main 에서 original_FPLS 를 호출하는 형태로 구현한다.
-// 나중에 new_FPLS.cpp 를 만들어도, 이 부분에서 어떤 FPLS 함수를 호출할지만 바꾸면 된다.
-
-// 주어진 데이터 파일 하나를 처리하는 헬퍼 함수
-//  - filePath: mknapcb 파일 이름
-//  - prefixId: mkcbres 에서 사용하는 prefix (예: "5.100")
-void process_file_with_original_fpls(const std::string &filePath,
-                                     const std::string &prefixId,
-                                     const MKCBResults &mkcb,
-                                     std::vector<FPLSRunResult> &allRuns)
+void process_file_with_dp_fpls(const std::string &filePath,
+                               const std::string &prefixId,
+                               const MKCBResults &mkcb,
+                               std::vector<FPLSRunResult> &allRuns)
 {
     std::ifstream fin(filePath.c_str());
     if (!fin) {
@@ -41,14 +35,14 @@ void process_file_with_original_fpls(const std::string &filePath,
             break;
         }
 
-        // Chu-Beasley 형식의 instance ID 생성: 예) "5.100-07"
+        // instance ID 생성: 예) "5.100-07"
         std::ostringstream ossId;
         ossId << prefixId << "-";
         if (idx < 10) ossId << "0" << idx;
         else ossId << idx;
         std::string instanceId = ossId.str();
 
-        // mkcbres 에서 해당 instance 의 기준 값 찾기
+        // mkcbres 에서 기준 값 찾기
         MKCBResultRow mkcbRow;
         bool found = false;
         for (const auto &row : mkcb.rows) {
@@ -68,22 +62,19 @@ void process_file_with_original_fpls(const std::string &filePath,
                   << " (n=" << inst.numItems
                   << ", m=" << inst.numConstraints << ")" << std::endl;
 
-        // 이 지점에서 어떤 FPLS 변형을 호출할지 선택하면 된다.
-        // 현재는 original_FPLS 의 run_fpls_single 을 호출.
+        // DP+FPLS 실행
         for (int r = 0; r < g_numRuns; ++r) {
-            FPLSRunResult runRes = run_fpls_single(inst, instanceId, mkcbRow, r);
+            FPLSRunResult runRes = run_dp_fpls_single(inst, instanceId, mkcbRow, r);
             allRuns.push_back(runRes);
         }
     }
 }
 
-
 int main()
 {
     std::string fpath = "./MKP_instances/";
-
-    /* original FPLS */
-    // mkcbres 파일 읽기
+    
+    /* dp FPLS */
     MKCBResults mkcb = read_mkcbres(fpath + "mkcbres.txt");
     if (mkcb.rows.empty()) {
         std::cerr << "[ERROR] No mkcbres rows loaded. Exiting." << std::endl;
@@ -93,18 +84,17 @@ int main()
     std::vector<FPLSRunResult> allRuns;
     allRuns.reserve(9 * 30 * g_numRuns);
 
-    // Chu-Beasley 순서에 맞춰 prefixId 를 지정한다.
-    process_file_with_original_fpls(fpath + "mknapcb1.txt", "5.100", mkcb, allRuns);
-    process_file_with_original_fpls(fpath + "mknapcb2.txt", "5.250", mkcb, allRuns);
-    process_file_with_original_fpls(fpath + "mknapcb3.txt", "5.500", mkcb, allRuns);
-    process_file_with_original_fpls(fpath + "mknapcb4.txt", "10.100", mkcb, allRuns);
-    process_file_with_original_fpls(fpath + "mknapcb5.txt",  "10.250", mkcb, allRuns);
-    process_file_with_original_fpls(fpath + "mknapcb6.txt",  "10.500", mkcb, allRuns);
-    process_file_with_original_fpls(fpath + "mknapcb7.txt",  "30.100", mkcb, allRuns);
-    process_file_with_original_fpls(fpath + "mknapcb8.txt",  "30.250", mkcb, allRuns);
-    process_file_with_original_fpls(fpath + "mknapcb9.txt",  "30.500", mkcb, allRuns);
+    process_file_with_dp_fpls(fpath + "mknapcb1.txt", "5.100", mkcb, allRuns);
+    process_file_with_dp_fpls(fpath + "mknapcb2.txt", "5.250", mkcb, allRuns);
+    process_file_with_dp_fpls(fpath + "mknapcb3.txt", "5.500", mkcb, allRuns);
+    process_file_with_dp_fpls(fpath + "mknapcb4.txt", "10.100", mkcb, allRuns);
+    process_file_with_dp_fpls(fpath + "mknapcb5.txt",  "10.250", mkcb, allRuns);
+    process_file_with_dp_fpls(fpath + "mknapcb6.txt",  "10.500", mkcb, allRuns);
+    process_file_with_dp_fpls(fpath + "mknapcb7.txt",  "30.100", mkcb, allRuns);
+    process_file_with_dp_fpls(fpath + "mknapcb8.txt",  "30.250", mkcb, allRuns);
+    process_file_with_dp_fpls(fpath + "mknapcb9.txt",  "30.500", mkcb, allRuns);
 
-    write_results_csv("./results/fpls_original_results.csv", allRuns);
+    write_results_csv("./results/dp_fpls_results.csv", allRuns);
 
     return 0;
 }
