@@ -7,15 +7,15 @@ TARGET_ORIGINAL := fpls_original
 TARGET_DP_FPLS  := fpls_dp
 
 # 공통 소스
-SRCS_COMMON  := dataIO.cpp original_FPLS.cpp
+SRCS_COMMON  := dataIO.cpp main.cpp
 OBJS_COMMON  := $(SRCS_COMMON:.cpp=.o)
 
 # original FPLS 전용 소스
-SRCS_ORIGINAL := main.cpp
+SRCS_ORIGINAL := original_FPLS.cpp
 OBJS_ORIGINAL := $(SRCS_ORIGINAL:.cpp=.o)
 
 # DP+FPLS 전용 소스
-SRCS_DP  := dp_fpls.cpp main_dp.cpp
+SRCS_DP  := dp_FPLS.cpp
 OBJS_DP  := $(SRCS_DP:.cpp=.o)
 
 .PHONY: all clean original dp
