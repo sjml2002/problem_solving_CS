@@ -4,19 +4,16 @@ CXXFLAGS := -std=c++11 -O2 -Wall -Wextra
 
 # 타겟
 TARGET_ORIGINAL := fpls_original
-TARGET_DP_FPLS  := fpls_dp
+TARGET_DP       := fpls_dp
 
-# 공통 소스
-SRCS_COMMON  := dataIO.cpp main.cpp
-OBJS_COMMON  := $(SRCS_COMMON:.cpp=.o)
+# 공통 소스 (입출력)
+OBJS_COMMON := dataIO.o
 
-# original FPLS 전용 소스
-SRCS_ORIGINAL := original_FPLS.cpp
-OBJS_ORIGINAL := $(SRCS_ORIGINAL:.cpp=.o)
+# original FPLS
+OBJS_ORIGINAL := original_FPLS.o main.o
 
-# DP+FPLS 전용 소스
-SRCS_DP  := dp_FPLS.cpp
-OBJS_DP  := $(SRCS_DP:.cpp=.o)
+# DP+FPLS
+OBJS_DP := original_FPLS.o dp_FPLS.o main_dp.o
 
 .PHONY: all clean original dp
 
@@ -29,14 +26,21 @@ $(TARGET_ORIGINAL): $(OBJS_COMMON) $(OBJS_ORIGINAL)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 # ---------- DP+FPLS 빌드 ----------
-dp: $(TARGET_DP_FPLS)
+dp: $(TARGET_DP)
 
-$(TARGET_DP_FPLS): $(OBJS_COMMON) $(OBJS_DP)
+$(TARGET_DP): $(OBJS_COMMON) $(OBJS_DP)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-# ---------- 공통 규칙 ----------
+# ---------- 공통 컴파일 규칙 ----------
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+# ---------- 헤더 의존성 ----------
+dataIO.o:        dataIO.cpp        dataIO.h
+original_FPLS.o: original_FPLS.cpp original_FPLS.h dataIO.h
+dp_FPLS.o:       dp_FPLS.cpp       dp_FPLS.h       original_FPLS.h dataIO.h
+main.o:          main.cpp          original_FPLS.h  dataIO.h
+main_dp.o:       main_dp.cpp       dp_FPLS.h        original_FPLS.h dataIO.h
+
 clean:
-	rm -f *.o $(TARGET_ORIGINAL) $(TARGET_DP_FPLS)
+	rm -f *.o $(TARGET_ORIGINAL) $(TARGET_DP)
