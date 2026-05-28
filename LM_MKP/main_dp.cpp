@@ -1,5 +1,5 @@
 #include "dataIO.h"
-#include "dp_fpls.h"
+#include "dp_FPLS.h"
 #include "original_FPLS.h"   // g_numRuns, g_numIterations, g_gamma 사용
 
 #include <iostream>
