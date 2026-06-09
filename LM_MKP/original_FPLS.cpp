@@ -108,6 +108,7 @@ FPLSRunResult run_fpls_single(const MKPInstance &inst,
     runRes.runIndex = runIndex;
     runRes.lpOptimum = mkcbRow.lpOptimum;
     runRes.bestFeasibleCB = mkcbRow.bestFeasible;
+    runRes.dpWeight = 0LL;   // original FPLS는 DP 없음
 
     // 초기 best 값들: 아직 아무 해도 없으므로 매우 나쁜 값으로 설정
     runRes.ourBestSolution = 0.0; // feasible 한 해가 없으면 0 으로 남는다 (MKP 는 비음수 이득)

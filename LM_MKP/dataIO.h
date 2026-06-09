@@ -33,6 +33,7 @@ struct FPLSRunResult {
     double ourBestLP;       // 이번 run 에서 FPLS 가 찾은 최고 Lagrangian bound θ(u)
     double percentDiffSolution; // 100 * (LP_opt - ourBestSolution) / LP_opt
     double percentDiffLP;       // 100 * (LP_opt - ourBestLP) / LP_opt
+    long long   dpWeight;   // DP로 선택된 아이템들의 b_i 기준 총 무게. original FPLS에서는 0.
 };
 
 // mkcbres 결과 전체를 저장 (두 테이블을 파싱한 후 매핑한 구조)
