@@ -149,11 +149,12 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
         if (Lu > runRes.ourBestLP)
             runRes.ourBestLP = Lu;
 
-        // I, J 분류 (FPLS 아이템 기준만 — b_i는 DP가 처리)
+        // I, J 분류
         std::vector<int> I, J;
         for (int ki = 0; ki < mFpls; ++ki) {
             int ci = fplsConstraints[ki];
-            if (bStar[ki] <= static_cast<long long>(inst.capacities[ci]))
+            // dpUsage + bStar 합산해서 실제 사용량으로 판단
+            if (dpUsage[ki] + bStar[ki] <= static_cast<long long>(inst.capacities[ci]))
                 I.push_back(ki);
             else
                 J.push_back(ki);
