@@ -127,9 +127,52 @@ void process_file_with_dp_fpls(
                   << " (n=" << inst.numItems
                   << ", m=" << inst.numConstraints << ")" << std::endl;
 
+        // run_dp_fpls_all 호출 전 allRuns 크기 기록
+        size_t runsBefore = allRuns.size();
+
         FPLSRunResult bestRun;
         int bestDpIdx = -1;
         run_dp_fpls_all(inst, instanceId, mkcbRow, allRuns, bestRun, bestDpIdx);
+
+        // -------------------------------------------------------
+        // 방금 추가된 run들만 뽑아서 b_i별 평균 출력
+        // -------------------------------------------------------
+        int m = inst.numConstraints;
+        std::cout << "\n=== " << instanceId << " (LP_opt=" << mkcbRow.lpOptimum << ") ===" << std::endl;
+
+        for (int dpIdx = 0; dpIdx < m; ++dpIdx) {
+            double sumBestSol = 0.0, sumPctSol = 0.0, sumPctLP = 0.0;
+            long long dpW = 0;
+            int count = 0;
+
+            for (size_t ri = runsBefore; ri < allRuns.size(); ++ri) {
+                const FPLSRunResult &r = allRuns[ri];
+                // instanceId가 "xxx-dp{dpIdx}" 인 것만 집계
+                std::ostringstream ossTarget;
+                ossTarget << instanceId << "-dp" << dpIdx;
+                if (r.instanceId != ossTarget.str()) continue;
+
+                sumBestSol += r.ourBestSolution;
+                sumPctSol  += r.percentDiffSolution;
+                sumPctLP   += r.percentDiffLP;
+                dpW         = r.dpWeight;
+                ++count;
+            }
+
+            if (count == 0) continue;
+
+            std::cout << "  b_" << dpIdx
+                      << " | dp_weight=" << dpW
+                      << " | avg_best_sol=" << sumBestSol / count
+                      << " | avg_%diff_sol=" << sumPctSol  / count
+                      << " | avg_%diff_LP="  << sumPctLP   / count
+                      << std::endl;
+        }
+
+        std::cout << "  >> BEST: b_" << bestDpIdx
+                  << " | best_sol=" << bestRun.ourBestSolution
+                  << " | %diff_sol=" << bestRun.percentDiffSolution
+                  << std::endl;
 
         bestPerInstance.push_back({instanceId, bestRun});
         bestDpIdxPerInstance.push_back({instanceId, bestDpIdx});
