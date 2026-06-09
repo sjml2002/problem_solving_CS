@@ -8,7 +8,7 @@
 // 1-D 0/1 knapsack DP
 // dpConstraintIdx 번 제약만 사용.
 // selected[j] = 1 이면 물건 j가 DP 최적해에 포함됨.
-long long solve_dp(const MKPInstance &inst,
+void solve_dp(const MKPInstance &inst,
               int dpConstraintIdx,
               std::vector<int> &selected);
 

@@ -9,7 +9,7 @@
 // -------------------------------------------------------
 // 1-D 0/1 knapsack DP
 // -------------------------------------------------------
-long long solve_dp(const MKPInstance &inst,
+void solve_dp(const MKPInstance &inst,
               int dpConstraintIdx,
               std::vector<int> &selected)
 {
@@ -43,8 +43,6 @@ long long solve_dp(const MKPInstance &inst,
             rem -= w[j];
         }
     }
-
-    return (dp[n][cap]);
 }
 
 // -------------------------------------------------------
@@ -61,14 +59,13 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
 
     // Step 1: DP 실행
     std::vector<int> selected;
-    long long resdp = solve_dp(inst, dpConstraintIdx, selected);
+    solve_dp(inst, dpConstraintIdx, selected);
 
     // DP가 선택한 아이템의 목적함수 기여값
     long long dpObj = 0;
     for (int j = 0; j < n; ++j) {
         if (selected[j]) dpObj += inst.profits[j];
     }
-    std::cout << resdp << " == " << dpObj << "\n";
 
     // DP로 선택된 아이템들의 b_i 기준 총 무게 W
     long long dpWeight = 0;
@@ -99,6 +96,7 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
     runRes.ourBestSolution = 0.0;
     runRes.ourBestLP       = -std::numeric_limits<double>::infinity();
     runRes.dpWeight        = dpWeight;
+    runRes.dpOpt           = dpObj;
 
     // 엣지 케이스: FPLS 아이템이나 제약이 없으면 DP 해 그대로 반환
     if (nFpls == 0 || mFpls == 0) {

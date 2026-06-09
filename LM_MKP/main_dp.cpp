@@ -142,7 +142,7 @@ void process_file_with_dp_fpls(
 
         for (int dpIdx = 0; dpIdx < m; ++dpIdx) {
             double sumBestSol = 0.0, sumPctSol = 0.0, sumPctLP = 0.0;
-            long long dpW = 0;
+            long long dpW, dpO = 0;
             int count = 0;
 
             for (size_t ri = runsBefore; ri < allRuns.size(); ++ri) {
@@ -156,17 +156,20 @@ void process_file_with_dp_fpls(
                 sumPctSol  += r.percentDiffSolution;
                 sumPctLP   += r.percentDiffLP;
                 dpW         = r.dpWeight;
+                dpO         = r.dpOpt;
                 ++count;
             }
 
             if (count == 0) continue;
 
             std::cout << "  b_" << dpIdx
-                      << " | dp_weight=" << dpW
-                      << " | avg_best_sol=" << sumBestSol / count
-                      << " | avg_%diff_sol=" << sumPctSol  / count
-                      << " | avg_%diff_LP="  << sumPctLP   / count
-                      << std::endl;
+                << " | b_i_capacity=" << inst.capacities[dpIdx]   // b_i 용량
+                << " | dp_opt=" << dpO                       // dp 최적값 (아래 참고)
+                << " | dp_weight=" << dpW
+                << " | avg_best_sol=" << sumBestSol / count
+                << " | avg_%diff_sol=" << sumPctSol  / count
+                << " | avg_%diff_LP="  << sumPctLP   / count
+                << std::endl;
         }
 
         std::cout << "  >> BEST: b_" << bestDpIdx
