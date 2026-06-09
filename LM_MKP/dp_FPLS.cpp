@@ -161,18 +161,28 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
         }
 
         if (J.empty()) {
-            // feasible: DP 기여 + FPLS 기여 합산
-            double totalObj = static_cast<double>(dpObj) + mu;
-            if (totalObj > runRes.ourBestSolution) {
-                runRes.ourBestSolution = totalObj;
+            // FPLS 아이템들의 b_i 사용량 체크
+            long long fplsWeightOnDp = 0;
+            for (int ji = 0; ji < nFpls; ++ji) {
+                if (x[ji]) {
+                    fplsWeightOnDp += inst.weights[dpConstraintIdx][fplsItems[ji]];
+                }
             }
-            std::uniform_int_distribution<int> dist(0, static_cast<int>(I.size()) - 1);
-            int ki = I[dist(rng)];
-            u[ki] = std::max(0.0, u[ki] - delta);
-        } else {
-            std::uniform_int_distribution<int> dist(0, static_cast<int>(J.size()) - 1);
-            int ki = J[dist(rng)];
-            u[ki] += delta;
+
+            // DP 사용량 + FPLS 사용량 <= b_i 용량이어야 진짜 feasible
+            if (dpWeight + fplsWeightOnDp
+                    <= static_cast<long long>(inst.capacities[dpConstraintIdx])) {
+                double totalObj = static_cast<double>(dpObj) + mu;
+                if (totalObj > runRes.ourBestSolution) {
+                    runRes.ourBestSolution = totalObj;
+                }
+            }
+
+            if (!I.empty()) {
+                std::uniform_int_distribution<int> dist(0, static_cast<int>(I.size()) - 1);
+                int ki = I[dist(rng)];
+                u[ki] = std::max(0.0, u[ki] - delta);
+            }
         }
     }
 
