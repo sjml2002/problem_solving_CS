@@ -22,10 +22,14 @@ long long solve_dp(const MKPInstance &inst,
 
     for (int j=0; j < n; j++) {
         for (int c=cap; c >= 0; c--) {
-            if (j > 0)
+            if (j == 0 && c >= w[j]) {
+                dp[j][c] = (long long)p[j];
+            }
+            else {
                 dp[j][c] = dp[j-1][c];
-            if (c >= w[j])
-                dp[j][c] = std::max(dp[j][c], dp[j-1][c - w[j]] + (long long)p[j]);
+                if (c >= w[j])
+                    dp[j][c] = std::max(dp[j][c], dp[j-1][c - w[j]] + (long long)p[j]);
+            }
         }
     }
 
