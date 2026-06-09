@@ -31,8 +31,8 @@ void solve_dp(const MKPInstance &inst,
     selected.assign(n, 0);
     int rem = cap;
     for (int j = n - 1; j >= 0; --j) {
-        if (rem < w[j]) continue;
-        if (dp[rem] == dp[rem - w[j]] + static_cast<long long>(p[j])) {
+        if (w[j] <= 0 || w[j] > cap) continue;  // DP와 동일한 조건 추가
+        if (rem >= w[j] && dp[rem] == dp[rem - w[j]] + static_cast<long long>(p[j])) {
             selected[j] = 1;
             rem -= w[j];
         }
