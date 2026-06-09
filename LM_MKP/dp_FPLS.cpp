@@ -18,21 +18,21 @@ void solve_dp(const MKPInstance &inst,
     const std::vector<int> &w = inst.weights[dpConstraintIdx];
     const std::vector<int> &p = inst.profits;
 
-    std::vector<long long> dp(cap + 1, 0LL);
+    std::vector<std::vector<long long>> dp(n + 1, std::vector<long long>(cap + 1, 0LL));
 
     for (int j = 0; j < n; ++j) {
-        if (w[j] <= 0 || w[j] > cap) continue;
-        for (int c = cap; c >= w[j]; --c) {
-            dp[c] = std::max(dp[c], dp[c - w[j]] + static_cast<long long>(p[j]));
+        for (int c = 0; c <= cap; ++c) {
+            dp[j+1][c] = dp[j][c];
+            if (w[j] > 0 && c >= w[j])
+                dp[j+1][c] = std::max(dp[j+1][c], dp[j][c - w[j]] + (long long)p[j]);
         }
     }
 
-    // 역추적으로 선택된 물건 복원
+    // 역추적
     selected.assign(n, 0);
     int rem = cap;
     for (int j = n - 1; j >= 0; --j) {
-        if (w[j] <= 0 || w[j] > cap) continue;  // DP와 동일한 조건 추가
-        if (rem >= w[j] && dp[rem] == dp[rem - w[j]] + static_cast<long long>(p[j])) {
+        if (w[j] > 0 && rem >= w[j] && dp[j+1][rem] == dp[j][rem - w[j]] + (long long)p[j]) {
             selected[j] = 1;
             rem -= w[j];
         }
@@ -132,7 +132,6 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
         for (int ji = 0; ji < nFpls; ++ji) {
             if (x[ji]) mu += inst.profits[fplsItems[ji]];
         }
-        std::cout << "mu: " << mu << "\n"; //debug
 
         // b^* = FPLS 제약 부분 사용량
         std::vector<long long> bStar(mFpls, 0LL);
@@ -157,41 +156,15 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
         std::vector<int> I, J;
         for (int ki = 0; ki < mFpls; ++ki) {
             int ci = fplsConstraints[ki];
-            if (bStar[ki] <= static_cast<long long>(inst.capacities[ci])) I.push_back(ki);
-            else                                                           J.push_back(ki);
+            if (bStar[ki] <= static_cast<long long>(inst.capacities[ci])) {
+                I.push_back(ki);
+            }
+            else { 
+                J.push_back(ki);
+            }
         }
 
         if (J.empty()) {
-
-            //debug start
-            bool fullyFeasible = true;
-            for (int i = 0; i < m; ++i) {
-                long long use = 0;
-                // DP 선택 아이템
-                for (int j = 0; j < n; ++j) {
-                    if (selected[j]) use += inst.weights[i][j];
-                }
-                // FPLS 선택 아이템
-                for (int ji = 0; ji < nFpls; ++ji) {
-                    if (x[ji]) use += inst.weights[i][fplsItems[ji]];
-                }
-                if (use > inst.capacities[i]) {
-                    fullyFeasible = false;
-                    break;
-                }
-            }
-
-            if (fullyFeasible) {
-                double totalObj = static_cast<double>(dpObj) + mu;
-                if (totalObj > runRes.ourBestSolution) {
-                    runRes.ourBestSolution = totalObj;
-                }
-            }
-            //debug end
-
-
-
-
             // feasible: DP 기여 + FPLS 기여 합산
             double totalObj = static_cast<double>(dpObj) + mu;
             if (totalObj > runRes.ourBestSolution) {
