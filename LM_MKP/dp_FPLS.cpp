@@ -113,8 +113,7 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
     for (int t = 1; t <= g_numIterations; ++t) {
         double delta = 1.0 / static_cast<double>(t + g_gamma - 1);
 
-        // LMMKP: fplsItems 중에서 선택
-        // x_j = 1 iff c_j > sum_k u_k * a_{fplsConstraints[k], j}
+        // LMMKP
         std::vector<int> x(nFpls, 0);
         for (int ji = 0; ji < nFpls; ++ji) {
             int j = fplsItems[ji];
@@ -128,13 +127,13 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
             }
         }
 
-        // mu^* = c^T x (FPLS 아이템 부분)
+        // mu^* = FPLS 아이템 부분 목적함수
         double mu = 0.0;
         for (int ji = 0; ji < nFpls; ++ji) {
             if (x[ji]) mu += inst.profits[fplsItems[ji]];
         }
 
-        // b^* = A x (FPLS 제약 부분)
+        // b^* = FPLS 제약 부분 사용량
         std::vector<long long> bStar(mFpls, 0LL);
         for (int ki = 0; ki < mFpls; ++ki) {
             int ci = fplsConstraints[ki];
@@ -143,8 +142,8 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
             }
         }
 
-        // theta(u) = dpObj + mu^* + u^T(b - b^*)
-        double theta = static_cast<double>(dpObj) + mu;
+        // theta(u) = mu^* + u^T(b - b^*)  ← dpObj 더하지 않음
+        double theta = mu;
         for (int ki = 0; ki < mFpls; ++ki) {
             int ci = fplsConstraints[ki];
             theta += u[ki] * static_cast<double>(inst.capacities[ci] - bStar[ki]);
@@ -162,6 +161,7 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
         }
 
         if (J.empty()) {
+            // feasible: DP 기여 + FPLS 기여 합산
             double totalObj = static_cast<double>(dpObj) + mu;
             if (totalObj > runRes.ourBestSolution) {
                 runRes.ourBestSolution = totalObj;
@@ -176,10 +176,12 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
         }
     }
 
+    // percent diff: ourBestLP는 FPLS 부분만이므로 dpObj 합산해서 비교
     double LP = runRes.lpOptimum;
     if (LP > 0.0) {
         runRes.percentDiffSolution = 100.0 * (LP - runRes.ourBestSolution) / LP;
-        runRes.percentDiffLP       = 100.0 * (LP - runRes.ourBestLP) / LP;
+        double ourTotalLP = runRes.ourBestLP + static_cast<double>(dpObj);
+        runRes.percentDiffLP = 100.0 * (LP - ourTotalLP) / LP;
     } else {
         runRes.percentDiffSolution = 0.0;
         runRes.percentDiffLP       = 0.0;
