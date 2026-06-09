@@ -138,9 +138,11 @@ void process_file_with_dp_fpls(
 
 int main()
 {
-    MKCBResults mkcb = read_mkcbres("mkcbres-9.txt");
+    std::string fpath = "./MKP_instances/";
+
+    MKCBResults mkcb = read_mkcbres(fpath + "mkcbres.txt");
     if (mkcb.rows.empty()) {
-        std::cerr << "[ERROR] No mkcbres rows loaded." << std::endl;
+        std::cerr << "[ERROR] No mkcbres rows loaded. Exiting." << std::endl;
         return 1;
     }
 
@@ -148,17 +150,17 @@ int main()
     std::vector<std::pair<std::string, FPLSRunResult>> bestPerInstance;
     std::vector<std::pair<std::string, int>> bestDpIdxPerInstance;
 
-    process_file_with_dp_fpls("mknapcb1-10.txt", "5.100",  mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
-    process_file_with_dp_fpls("mknapcb2-11.txt", "5.250",  mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
-    process_file_with_dp_fpls("mknapcb3-12.txt", "5.500",  mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
-    process_file_with_dp_fpls("mknapcb4-13.txt", "10.100", mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
-    process_file_with_dp_fpls("mknapcb5-3.txt",  "10.250", mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
-    process_file_with_dp_fpls("mknapcb6-4.txt",  "10.500", mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
-    process_file_with_dp_fpls("mknapcb7-5.txt",  "30.100", mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
-    process_file_with_dp_fpls("mknapcb8-6.txt",  "30.250", mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
-    process_file_with_dp_fpls("mknapcb9-7.txt",  "30.500", mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
+    process_file_with_dp_fpls(fpath + "mknapcb1.txt", "5.100",  mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
+    process_file_with_dp_fpls(fpath + "mknapcb2.txt", "5.250",  mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
+    process_file_with_dp_fpls(fpath + "mknapcb3.txt", "5.500",  mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
+    process_file_with_dp_fpls(fpath + "mknapcb4.txt", "10.100", mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
+    process_file_with_dp_fpls(fpath + "mknapcb5.txt", "10.250", mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
+    process_file_with_dp_fpls(fpath + "mknapcb6.txt", "10.500", mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
+    process_file_with_dp_fpls(fpath + "mknapcb7.txt", "30.100", mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
+    process_file_with_dp_fpls(fpath + "mknapcb8.txt", "30.250", mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
+    process_file_with_dp_fpls(fpath + "mknapcb9.txt", "30.500", mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
 
-    write_dp_fpls_csv("dp_fpls_results.csv", allRuns, bestPerInstance, bestDpIdxPerInstance);
+    write_dp_fpls_csv("./results/dp_fpls_results.csv", allRuns, bestPerInstance, bestDpIdxPerInstance);
 
     return 0;
 }
