@@ -9,9 +9,7 @@
 #include <map>
 
 void write_dp_fpls_csv(const std::string &csvPath,
-                       const std::vector<FPLSRunResult> &allRuns,
-                       const std::vector<std::pair<std::string, FPLSRunResult>> &bestPerInstance,
-                       const std::vector<std::pair<std::string, int>> &bestDpIdxPerInstance)
+                       const std::vector<FPLSRunResult> &allRuns)
 {
     std::ofstream fout(csvPath.c_str());
     if (!fout) {
@@ -230,7 +228,7 @@ int main()
     process_file_with_dp_fpls(fpath + "mknapcb8.txt", "30.250", mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
     process_file_with_dp_fpls(fpath + "mknapcb9.txt", "30.500", mkcb, allRuns, bestPerInstance, bestDpIdxPerInstance);
 
-    write_dp_fpls_csv("./results/dp_fpls_results.csv", allRuns, bestPerInstance, bestDpIdxPerInstance);
+    write_dp_fpls_csv("./results/dp_fpls_results.csv", allRuns);
 
     return 0;
 }
