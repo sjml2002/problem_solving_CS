@@ -67,17 +67,41 @@ void write_dp_fpls_csv(const std::string &csvPath,
              << a.dpWeight << "\n";
     }
 
-    // 3) 인스턴스별 best run + best_dp_constraint
-    for (size_t k = 0; k < bestPerInstance.size(); ++k) {
-        const std::string   &baseId = bestPerInstance[k].first;
-        const FPLSRunResult &br     = bestPerInstance[k].second;
-        int                  bIdx   = bestDpIdxPerInstance[k].second;
-        fout << baseId << ",BEST_RUN,"
-             << br.lpOptimum << "," << br.bestFeasibleCB << ","
-             << br.ourBestLP << "," << br.ourBestSolution << ","
-             << br.percentDiffSolution << "," << br.percentDiffLP << ","
-             << br.dpWeight
-             << ",best_dp_constraint=" << bIdx << "\n";
+    // 3) 인스턴스별 전체 평균 (dp 인덱스 무관하게 합산)
+    struct InstAgg {
+        int    count    = 0;
+        double sumBestSol = 0, sumLP = 0, sumPctSol = 0, sumPctLP = 0;
+        double lpOpt = 0, bestCB = 0;
+    };
+    std::map<std::string, InstAgg> byInst;
+
+    for (const auto &r : allRuns) {
+        // instanceId가 "5.100-00-dp0" 형태이므로 base id 추출
+        // "-dp" 앞부분만 잘라냄
+        std::string baseId = r.instanceId;
+        auto pos = baseId.rfind("-dp");
+        if (pos != std::string::npos) baseId = baseId.substr(0, pos);
+
+        InstAgg &a = byInst[baseId];
+        a.count++;
+        a.sumBestSol += r.ourBestSolution;
+        a.sumLP      += r.ourBestLP;
+        a.sumPctSol  += r.percentDiffSolution;
+        a.sumPctLP   += r.percentDiffLP;
+        a.lpOpt       = r.lpOptimum;
+        a.bestCB      = r.bestFeasibleCB;
+    }
+
+    for (const auto &kv : byInst) {
+        const InstAgg &a = kv.second;
+        if (a.count == 0) continue;
+        fout << kv.first << ",INST_AVG,"
+            << a.lpOpt  << "," << a.bestCB << ","
+            << a.sumLP      / a.count << ","
+            << a.sumBestSol / a.count << ","
+            << a.sumPctSol  / a.count << ","
+            << a.sumPctLP   / a.count << ","
+            << "-" << "\n";  // dpWeight는 인스턴스 전체 평균에선 의미 없으므로 -
     }
 
     std::cerr << "[INFO] CSV written to " << csvPath << std::endl;
