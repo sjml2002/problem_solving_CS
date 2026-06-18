@@ -35,15 +35,27 @@ void solve_dp(const MKPInstance &inst,
         }
     }
 
+    //최종값은 dp[n-1][cap] 에 담겨져 있음.
     // 역추적
     selected.assign(n, 0);
     int rem = cap;
-    for (int j = n - 1; j >= 0; --j) {
-        if (w[j] > 0 && rem >= w[j] && dp[j+1][rem] == dp[j][rem - w[j]] + (long long)p[j]) {
+    for (int j = n - 1; j > 0; --j) {
+        //현재 아이템 j와 j-1이 다르므로 현재 아이템 j를 넣었다는 것을 알 수 있음
+        if (dp[j][rem] != dp[j-1][rem]) {
             selected[j] = 1;
             rem -= w[j];
         }
+
+        if (rem == 0 || dp[j][rem] == 0)
+            break ;
     }
+
+    //debug
+    for (int i=0; i<selected.size(); i++) {
+        if (selected[i])
+            std::cout << i << ": " << w[i] << "  ";
+    }
+    std::cout << "\n";
 }
 
 FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
