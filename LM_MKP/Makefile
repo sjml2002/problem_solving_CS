@@ -13,7 +13,7 @@ OBJS_COMMON := dataIO.o
 OBJS_ORIGINAL := original_FPLS.o main.o
 
 # DP+FPLS
-OBJS_DP := original_FPLS.o dp_FPLS.o main_dp.o
+OBJS_DP := original_FPLS.o dp_FPLS.o main_dp.o verify_solution.o
 
 .PHONY: all clean original dp
 
@@ -41,6 +41,7 @@ original_FPLS.o: original_FPLS.cpp original_FPLS.h dataIO.h
 dp_FPLS.o:       dp_FPLS.cpp       dp_FPLS.h       original_FPLS.h dataIO.h
 main.o:          main.cpp          original_FPLS.h  dataIO.h
 main_dp.o:       main_dp.cpp       dp_FPLS.h        original_FPLS.h dataIO.h
+verify_solution.o: verify_solution.cpp verify_solution.h
 
 clean:
 	rm -f *.o $(TARGET_ORIGINAL) $(TARGET_DP)
