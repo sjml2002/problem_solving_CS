@@ -1,4 +1,5 @@
 #include "dp_FPLS.h"
+#include "verify_solution.h"
 
 #include <random>
 #include <algorithm>
@@ -164,6 +165,13 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
             double totalObj = static_cast<double>(dpObj) + fplsObj;
             if (totalObj > runRes.ourBestSolution)
                 runRes.ourBestSolution = totalObj;
+            
+            // DEBUG: LP_opt 초과 시 출력
+            if (totalObj > runRes.lpOptimum) {
+                verify_and_print(inst, instanceId, selected, x, fplsItems,
+                                dpConstraintIdx, runRes.lpOptimum);
+            }
+
             if (!I.empty()) {
                 std::uniform_int_distribution<int> dist(0, static_cast<int>(I.size()) - 1);
                 int ki = I[dist(rng)];
