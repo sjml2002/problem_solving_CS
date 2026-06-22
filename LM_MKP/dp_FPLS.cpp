@@ -49,13 +49,6 @@ void solve_dp(const MKPInstance &inst,
         if (rem == 0 || dp[j][rem] == 0)
             break ;
     }
-
-    //debug
-    for (int i=0; i<selected.size(); i++) {
-        if (selected[i])
-            std::cout << i << ": " << w[i] << "  ";
-    }
-    std::cout << "\n";
 }
 
 FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
@@ -83,6 +76,7 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
     for (int j = 0; j < n; ++j)
         if (!selected[j]) fplsItems.push_back(j);
     int nFpls = static_cast<int>(fplsItems.size()); //dp로 고른 아이템 제외
+
 
     std::vector<int> fplsConstraints;
     for (int i = 0; i < m; ++i)
