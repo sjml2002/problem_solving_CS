@@ -49,8 +49,11 @@ void verify_and_print(
     bool dpFeasible = true;
     int dpWeightSum = 0;
     for (int i=0; i<(int)dpSelected.size(); i++)
-        dpWeightSum += dpSelected[i];
+        dpWeightSum += inst.weights[dpConstraintIdx][i] * dpSelected[i];
     dpFeasible = (dpWeightSum <= inst.capacities[dpConstraintIdx]);
+    std::cout << "DP Constraint " << dpConstraintIdx << ": used " << dpWeightSum
+             << " / capacity " << inst.capacities[dpConstraintIdx]
+             << (dpFeasible ? " OK" : " *** INFEASIBLE ***") << "\n";
 
     //2. fpls 제약 만족하는지 확인
     bool fplsFeasible = true;
@@ -65,6 +68,9 @@ void verify_and_print(
             fplsFeasible = false;
             break ;
         }
+        std::cout << "Constraint " << j << ": used " << fplsWeightSum
+             << " / capacity " << inst.capacities[j]
+             << (fplsWeightSum > inst.capacities[j] ? " *** INFEASIBLE ***" : " OK") << "\n";
     }
 
     bool allFeasible = dpFeasible && fplsFeasible;

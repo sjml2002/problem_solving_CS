@@ -25,15 +25,15 @@ void solve_dp(const MKPInstance &inst,
     for (int j=0; j < n; j++) {
         for (int c=0; c <= cap; c++) {
             if (j == 0) {
-		if (c > 0)
-		    dp[j][c] = dp[j][c-1];
-                if (c >= w[j])
-                    dp[j][c] = std::max(dp[j][c], (long long)p[j]);
+                if (c > 0)
+                    dp[j][c] = dp[j][c-1];
+                        if (c >= w[j])
+                            dp[j][c] = std::max(dp[j][c], (long long)p[j]);
             }
             else {
                 dp[j][c] = std::max(dp[j][c], dp[j-1][c]);
-		if (c > 0)
-		    dp[j][c] = std::max(dp[j][c], dp[j][c-1]);
+		        if (c > 0)
+		            dp[j][c] = std::max(dp[j][c], dp[j][c-1]);
                 if (c >= w[j])
                     dp[j][c] = std::max(dp[j][c], dp[j-1][c - w[j]] + (long long)p[j]);
             }
@@ -139,6 +139,9 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
                 int j = fplsItems[ji];
                 if (x[j]) bStar[ci] += inst.weights[ci][j];
             }
+            for (int j = 0; j < n; ++j) { //dp도 사용한 제약량 합산
+                if (selected[j]) bStar[ci] += inst.weights[ci][j];
+            }
         }
 
         // L(u) = dpObj + fpls목적 - sum_k u_k*(dpUsage[k] + bStar[k] - b_k)
@@ -173,12 +176,12 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
             double totalObj = static_cast<double>(dpObj) + fplsObj;
             if (totalObj > runRes.ourBestSolution)
                 runRes.ourBestSolution = totalObj;
-            
-            // // DEBUG: LP_opt 초과 시 출력
-            // if (totalObj > runRes.lpOptimum) {
-            //     verify_and_print(inst, instanceId, selected, x, fplsItems,
-            //                     dpConstraintIdx, runRes.lpOptimum);
-            // }
+                
+                // // DEBUG: LP_opt 초과 시 출력
+                // if (totalObj > runRes.lpOptimum) {
+                //     verify_and_print(inst, instanceId, selected, x, fplsItems,
+                //                     dpConstraintIdx, runRes.lpOptimum);
+                // }
 
             if (!I.empty()) {
                 std::uniform_int_distribution<int> dist(0, static_cast<int>(I.size()) - 1);
