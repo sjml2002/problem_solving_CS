@@ -132,7 +132,7 @@ void process_file_with_dp_fpls(
         std::ostringstream ossId;
         ossId << prefixId << "-";
         if (idx < 10) ossId << "0" << idx;
-        else ossId << idx;
+        else          ossId << idx;
         std::string instanceId = ossId.str();
 
         MKCBResultRow mkcbRow;
@@ -149,55 +149,34 @@ void process_file_with_dp_fpls(
                   << " (n=" << inst.numItems
                   << ", m=" << inst.numConstraints << ")" << std::endl;
 
-        // run_dp_fpls_all 호출 전 allRuns 크기 기록
         size_t runsBefore = allRuns.size();
 
         FPLSRunResult bestRun;
         int bestDpIdx = -1;
         run_dp_fpls_all(inst, instanceId, mkcbRow, allRuns, bestRun, bestDpIdx);
 
-        // -------------------------------------------------------
-        // 방금 추가된 run들만 뽑아서 b_i별 평균 출력
-        // -------------------------------------------------------
-        int m = inst.numConstraints;
-        std::cout << "\n=== " << instanceId << " (LP_opt=" << mkcbRow.lpOptimum << ") ===" << std::endl;
+        std::cout << "\n=== " << instanceId
+                  << " | LP_opt=" << mkcbRow.lpOptimum
+                  << " | best_CB=" << mkcbRow.bestFeasible
+                  << " ===\n";
 
-        for (int dpIdx = 0; dpIdx < m; ++dpIdx) {
-            double sumBestSol = 0.0, sumPctSol = 0.0, sumPctLP = 0.0;
-            long long dpW, dpO = 0;
-            int count = 0;
-
-            for (size_t ri = runsBefore; ri < allRuns.size(); ++ri) {
-                const FPLSRunResult &r = allRuns[ri];
-                // instanceId가 "xxx-dp{dpIdx}" 인 것만 집계
-                std::ostringstream ossTarget;
-                ossTarget << instanceId << "-dp" << dpIdx;
-                if (r.instanceId != ossTarget.str()) continue;
-
-                sumBestSol += r.ourBestSolution;
-                sumPctSol  += r.percentDiffSolution;
-                sumPctLP   += r.percentDiffLP;
-                dpW         = r.dpWeight;
-                dpO         = r.dpOpt;
-                ++count;
-            }
-
-            if (count == 0) continue;
-
-            std::cout << "  b_" << dpIdx
-                << " | b_i_capacity=" << inst.capacities[dpIdx]   // b_i 용량
-                << " | dp_opt=" << dpO                       // dp 최적값 (아래 참고)
-                << " | dp_weight=" << dpW
-                << " | avg_best_sol=" << sumBestSol / count
-                << " | avg_%diff_sol=" << sumPctSol  / count
-                << " | avg_%diff_LP="  << sumPctLP   / count
-                << std::endl;
+        for (size_t ri = runsBefore; ri < allRuns.size(); ++ri) {
+            const FPLSRunResult &r = allRuns[ri];
+            std::cout << "  " << r.instanceId
+                      << " | run=" << r.runIndex
+                      << " | dpOpt=" << r.dpOpt
+                      << " | dpWeight=" << r.dpWeight
+                      << " | bestSol=" << r.ourBestSolution
+                      << " | %diff_sol=" << r.percentDiffSolution
+                      << " | %diff_LP=" << r.percentDiffLP
+                      << "\n";
         }
 
-        std::cout << "  >> BEST: b_" << bestDpIdx
-                  << " | best_sol=" << bestRun.ourBestSolution
+        std::cout << "  >> BEST: " << bestRun.instanceId
+                  << " | dpOpt=" << bestRun.dpOpt
+                  << " | bestSol=" << bestRun.ourBestSolution
                   << " | %diff_sol=" << bestRun.percentDiffSolution
-                  << std::endl;
+                  << "\n";
 
         bestPerInstance.push_back({instanceId, bestRun});
         bestDpIdxPerInstance.push_back({instanceId, bestDpIdx});

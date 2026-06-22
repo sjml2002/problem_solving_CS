@@ -19,7 +19,7 @@ void verify_and_print(
     for (int j = 0; j < n; ++j)
         if (dpSelected[j]) combined[j] = 1;
     for (int ji = 0; ji < (int)fplsX.size(); ++ji)
-        if (fplsX[ji]) combined[fplsItems[ji]] = 1;
+        if (fplsX[ji]) combined[ji] = 1;
 
     // 목적함수 직접 계산
     long long objVal = 0;
@@ -31,44 +31,43 @@ void verify_and_print(
     std::cout << "Computed objVal = " << objVal << "\n";
     std::cout << (objVal > lpOpt ? "!!! objVal > LP_opt -> BUG !!!" : "objVal <= LP_opt -> OK") << "\n";
 
-    // 선택 아이템 목록 출력
+    // dp가 고른 아이템 목록 출력
     std::cout << "\n[DP selected items] (constraint=" << dpConstraintIdx << ")\n  items: ";
     for (int j = 0; j < n; ++j)
         if (dpSelected[j]) std::cout << j << " ";
     std::cout << "\n";
 
+    // fpls가 고른 아이템 목록 출력
     std::cout << "[FPLS selected items]\n  items: ";
     for (int ji = 0; ji < (int)fplsX.size(); ++ji)
-        if (fplsX[ji]) std::cout << fplsItems[ji] << " ";
+        if (fplsX[ji]) std::cout << ji << " ";
     std::cout << "\n";
 
     // 제약별 사용량 검사
     std::cout << "\n[Constraint feasibility check]\n";
-    bool allFeasible = true;
-    for (int i = 0; i < m; ++i) {
-        long long dpUse   = 0;
-        long long fplsUse = 0;
-        long long total   = 0;
+    //1. dp 제약 만족하는지 확인
+    bool dpFeasible = true;
+    int dpWeightSum = 0;
+    for (int i=0; i<(int)dpSelected.size(); i++)
+        dpWeightSum += dpSelected[i];
+    dpFeasible = (dpWeightSum <= inst.capacities[dpConstraintIdx]);
 
-        for (int j = 0; j < n; ++j)
-            if (dpSelected[j]) dpUse += inst.weights[i][j];
-        for (int ji = 0; ji < (int)fplsX.size(); ++ji)
-            if (fplsX[ji]) fplsUse += inst.weights[i][fplsItems[ji]];
-        total = dpUse + fplsUse;
+    //2. fpls 제약 만족하는지 확인
+    bool fplsFeasible = true;
+    for(int j=0; j<m; j++) {
+        if (j == dpConstraintIdx)
+            continue ;
+        int fplsWeightSum = 0;
+        for (int i=0; i<(int)fplsX.size(); i++)
+            if (fplsX[i]) fplsWeightSum += inst.weights[j][i];
 
-        bool ok = (total <= inst.capacities[i]);
-        if (!ok) allFeasible = false;
-
-        std::cout << "  b[" << i << "]"
-                  << (i == dpConstraintIdx ? "(DP)" : "    ")
-                  << " : dp=" << dpUse
-                  << " fpls=" << fplsUse
-                  << " total=" << total
-                  << " / cap=" << inst.capacities[i]
-                  << (ok ? " OK" : " *** VIOLATION ***")
-                  << "\n";
+        if (fplsWeightSum > inst.capacities[j]) {
+            fplsFeasible = false;
+            break ;
+        }
     }
 
+    bool allFeasible = dpFeasible && fplsFeasible;
     std::cout << "\nOverall feasible: " << (allFeasible ? "YES" : "NO *** BUG ***") << "\n";
     std::cout << "=============================================\n\n";
 }
