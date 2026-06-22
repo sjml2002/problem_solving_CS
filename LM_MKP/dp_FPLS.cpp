@@ -70,18 +70,19 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
     solve_dp(inst, dpConstraintIdx, selected);
 
     long long dpObj = 0;
-    for (int j = 0; j < n; ++j)
-        if (selected[j]) dpObj += inst.profits[j];
-
     long long dpWeight = 0;
-    for (int j = 0; j < n; ++j)
-        if (selected[j]) dpWeight += inst.weights[dpConstraintIdx][j];
-
     std::vector<int> fplsItems;
-    for (int j = 0; j < n; ++j)
-        if (!selected[j]) fplsItems.push_back(j);
+    for (int j = 0; j < n; ++j) {
+        if (selected[j]) {
+            dpObj += inst.profits[j];
+            std::cout << j << ": " << inst.profits[j] << "\n"; //debug
+            dpWeight += inst.weights[dpConstraintIdx][j];
+        }
+        else //dp로 고른 아이템들은 제외
+            fplsItems.push_back(j);
+    }
     int nFpls = static_cast<int>(fplsItems.size()); //dp로 고른 아이템 제외
-
+    std::cout << "\n"; //debug
 
     std::vector<int> fplsConstraints;
     for (int i = 0; i < m; ++i)
