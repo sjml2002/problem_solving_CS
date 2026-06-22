@@ -21,14 +21,19 @@ void solve_dp(const MKPInstance &inst,
 
     std::vector<std::vector<long long>> dp(n + 1, std::vector<long long>(cap + 1, 0LL));
 
+
     for (int j=0; j < n; j++) {
-        for (int c=cap; c >= 0; c--) {
+        for (int c=0; c <= cap; c++) {
             if (j == 0) {
+		if (c > 0)
+		    dp[j][c] = dp[j][c-1];
                 if (c >= w[j])
-                    dp[j][c] = (long long)p[j];
+                    dp[j][c] = std::max(dp[j][c], (long long)p[j]);
             }
             else {
-                dp[j][c] = dp[j-1][c];
+                dp[j][c] = std::max(dp[j][c], dp[j-1][c]);
+		if (c > 0)
+		    dp[j][c] = std::max(dp[j][c], dp[j][c-1]);
                 if (c >= w[j])
                     dp[j][c] = std::max(dp[j][c], dp[j-1][c - w[j]] + (long long)p[j]);
             }
