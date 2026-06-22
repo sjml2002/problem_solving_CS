@@ -75,14 +75,12 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
     for (int j = 0; j < n; ++j) {
         if (selected[j]) {
             dpObj += inst.profits[j];
-            std::cout << j << ": " << inst.profits[j] << "\n"; //debug
             dpWeight += inst.weights[dpConstraintIdx][j];
         }
         else //dp로 고른 아이템들은 제외
             fplsItems.push_back(j);
     }
     int nFpls = static_cast<int>(fplsItems.size()); //dp로 고른 아이템 제외
-    std::cout << "\n"; //debug
 
     std::vector<int> fplsConstraints;
     for (int i = 0; i < m; ++i)
@@ -109,54 +107,52 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
         return runRes;
     }
 
-    // DP 아이템들의 m-1개 제약 소비량 (penalty 보정용)
-    std::vector<long long> dpUsage(mFpls, 0LL);
-    for (int ki = 0; ki < mFpls; ++ki) {
-        int ci = fplsConstraints[ki];
-        for (int j = 0; j < n; ++j)
-            if (selected[j]) dpUsage[ki] += inst.weights[ci][j];
-    }
-
     // Step 2: FPLS 루프
     std::mt19937 rng(123456789u
                      + static_cast<unsigned int>(runIndex)
                      + static_cast<unsigned int>(dpConstraintIdx) * 1000007u);
 
-    std::vector<double> u(mFpls, 0.0);
+    std::vector<double> u(m, 0.0);
 
     for (int t = 1; t <= g_numIterations; ++t) {
         double delta = 1.0 / static_cast<double>(t + g_gamma - 1);
 
         // LMMKP: Lagrangian 비용 기반 greedy 선택
-        std::vector<int> x(nFpls, 0);
+        std::vector<int> x(n, 0);
         for (int ji = 0; ji < nFpls; ++ji) {
             int j = fplsItems[ji];
             double lagCost = 0.0;
-            for (int ki = 0; ki < mFpls; ++ki)
-                lagCost += u[ki] * static_cast<double>(inst.weights[fplsConstraints[ki]][j]);
+            for (int ki = 0; ki < mFpls; ++ki) {
+                int ci = fplsConstraints[ki];
+                lagCost += u[ci] * static_cast<double>(inst.weights[ci][j]);
+            }
+                
             if (static_cast<double>(inst.profits[j]) > lagCost)
-                x[ji] = 1;
+                x[j] = 1;
         }
 
         // bStar: FPLS 아이템의 제약별 사용량
-        std::vector<long long> bStar(mFpls, 0LL);
+        std::vector<long long> bStar(m, 0LL);
         for (int ki = 0; ki < mFpls; ++ki) {
             int ci = fplsConstraints[ki];
-            for (int ji = 0; ji < nFpls; ++ji)
-                if (x[ji]) bStar[ki] += inst.weights[ci][fplsItems[ji]];
+            for (int ji = 0; ji < nFpls; ++ji) {
+                int j = fplsItems[ji];
+                if (x[j]) bStar[ci] += inst.weights[ci][j];
+            }
         }
 
         // L(u) = dpObj + fpls목적 - sum_k u_k*(dpUsage[k] + bStar[k] - b_k)
         double fplsObj = 0.0;
-        for (int ji = 0; ji < nFpls; ++ji)
-            if (x[ji]) fplsObj += inst.profits[fplsItems[ji]];
+        for (int ji = 0; ji < nFpls; ++ji) {
+            int j = fplsItems[ji];
+            if (x[j]) fplsObj += inst.profits[j];
+        }
 
         double Lu = static_cast<double>(dpObj) + fplsObj;
         for (int ki = 0; ki < mFpls; ++ki) {
             int ci = fplsConstraints[ki];
-            double violation = static_cast<double>(dpUsage[ki] + bStar[ki]
-                                                   - inst.capacities[ci]);
-            Lu -= u[ki] * violation;
+            double violation = static_cast<double>(bStar[ci] - inst.capacities[ci]);
+            Lu -= u[ci] * violation;
         }
 
         if (Lu > runRes.ourBestLP)
@@ -167,10 +163,10 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
         for (int ki = 0; ki < mFpls; ++ki) {
             int ci = fplsConstraints[ki];
             // dpUsage + bStar 합산해서 실제 사용량으로 판단
-            if (dpUsage[ki] + bStar[ki] <= static_cast<long long>(inst.capacities[ci]))
-                I.push_back(ki);
+            if (bStar[ci] <= static_cast<long long>(inst.capacities[ci]))
+                I.push_back(ci);
             else
-                J.push_back(ki);
+                J.push_back(ci);
         }
 
         if (J.empty()) {
@@ -178,21 +174,21 @@ FPLSRunResult run_dp_fpls_single(const MKPInstance &inst,
             if (totalObj > runRes.ourBestSolution)
                 runRes.ourBestSolution = totalObj;
             
-            // DEBUG: LP_opt 초과 시 출력
-            if (totalObj > runRes.lpOptimum) {
-                verify_and_print(inst, instanceId, selected, x, fplsItems,
-                                dpConstraintIdx, runRes.lpOptimum);
-            }
+            // // DEBUG: LP_opt 초과 시 출력
+            // if (totalObj > runRes.lpOptimum) {
+            //     verify_and_print(inst, instanceId, selected, x, fplsItems,
+            //                     dpConstraintIdx, runRes.lpOptimum);
+            // }
 
             if (!I.empty()) {
                 std::uniform_int_distribution<int> dist(0, static_cast<int>(I.size()) - 1);
-                int ki = I[dist(rng)];
-                u[ki] = std::max(0.0, u[ki] - delta);
+                int i = I[dist(rng)];
+                u[i] = std::max(0.0, u[i] - delta);
             }
         } else {
             std::uniform_int_distribution<int> dist(0, static_cast<int>(J.size()) - 1);
-            int ki = J[dist(rng)];
-            u[ki] += delta;
+            int i = J[dist(rng)];
+            u[i] += delta;
         }
     }
 
