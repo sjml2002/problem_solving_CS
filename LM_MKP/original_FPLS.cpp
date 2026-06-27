@@ -6,7 +6,7 @@
 #include <limits>
 
 // 전역 파라미터 기본값 설정
-int g_numIterations = 30000; // N
+int g_numIterations = 1000; // N
 int g_gamma = 10;            // \gamma
 int g_numRuns = 30;          // R
 
