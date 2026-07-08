@@ -6,9 +6,9 @@
 #include <limits>
 
 // 전역 파라미터 기본값 설정
-int g_numIterations = 1000; // N
+int g_numIterations = 50; // N
 int g_gamma = 10;            // \gamma
-int g_numRuns = 30;          // R
+int g_numRuns = 10;          // R
 
 // 고정 난수 시드
 static const unsigned int FIXED_SEED = 123456789u;
