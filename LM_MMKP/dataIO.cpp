@@ -5,7 +5,7 @@
 #include <filesystem>
 
 bool DataIO::validateItemTokens(int tokenCount, int M) {
-    return tokenCount == M + 1; // 1 value + M weights
+    return tokenCount == M + 1;
 }
 
 bool DataIO::readInstance(const std::string& filePath, Instance& outInstance) {
@@ -18,7 +18,6 @@ bool DataIO::readInstance(const std::string& filePath, Instance& outInstance) {
     outInstance = Instance{};
     outInstance.name = std::filesystem::path(filePath).filename().string();
 
-    // Line 1: N M
     if (!(fin >> outInstance.N >> outInstance.M)) {
         std::cerr << "[DataIO] Failed to read N, M from: " << filePath << std::endl;
         return false;
@@ -27,7 +26,6 @@ bool DataIO::readInstance(const std::string& filePath, Instance& outInstance) {
     int N = outInstance.N;
     int M = outInstance.M;
 
-    // Line 2: Q1 Q2 ... QM
     outInstance.capacity.resize(M);
     for (int m = 0; m < M; ++m) {
         if (!(fin >> outInstance.capacity[m])) {
@@ -36,7 +34,6 @@ bool DataIO::readInstance(const std::string& filePath, Instance& outInstance) {
         }
     }
 
-    // N classes, each: I_n, then I_n lines of (V + M weights)
     outInstance.classes.resize(N);
     for (int i = 0; i < N; ++i) {
         int Ii;
@@ -65,6 +62,54 @@ bool DataIO::readInstance(const std::string& filePath, Instance& outInstance) {
                     return false;
                 }
             }
+        }
+    }
+
+    return true;
+}
+
+bool DataIO::readSolutions(const std::string& csvPath,
+                            std::unordered_map<std::string, long long>& outMap) {
+    std::ifstream fin(csvPath, std::ios::binary);
+    if (!fin.is_open()) {
+        std::cerr << "[DataIO] Failed to open solutions CSV: " << csvPath << std::endl;
+        return false;
+    }
+
+    outMap.clear();
+    std::string line;
+    bool firstLine = true;
+
+    while (std::getline(fin, line)) {
+        if (line.empty()) continue;
+
+        // Strip UTF-8 BOM if present on the very first line.
+        if (firstLine) {
+            if (line.size() >= 3 &&
+                static_cast<unsigned char>(line[0]) == 0xEF &&
+                static_cast<unsigned char>(line[1]) == 0xBB &&
+                static_cast<unsigned char>(line[2]) == 0xBF) {
+                line = line.substr(3);
+            }
+            firstLine = false;
+        }
+
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+
+        std::stringstream ss(line);
+        std::string filename;
+        std::string valueStr;
+
+        if (!std::getline(ss, filename, ',')) continue;
+        if (!std::getline(ss, valueStr, ',')) continue;
+
+        try {
+            long long value = std::stoll(valueStr);
+            outMap[filename] = value;
+        } catch (const std::exception& e) {
+            std::cerr << "[DataIO] Failed to parse solution line: " << line << std::endl;
         }
     }
 

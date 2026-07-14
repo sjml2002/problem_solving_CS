@@ -2,15 +2,23 @@
 #define SOLUTION_H
 
 #include "dataIO.h"
+#include <vector>
 
-// Placeholder result struct — to be filled in with Lagrangian Multiplier results later.
-struct SolutionResult {
-    double bestValue = 0.0;
-    // TODO: add selected items, multiplier values, gap, iterations, etc.
+// selected[i] = index of the item currently chosen in class i (this IS x).
+struct Solution {
+    std::vector<int> selected;
+    std::vector<double> usage;   // normalized 0..1 per resource
+    double totalValue = 0.0;
 };
 
-// Skeleton solve function. Currently just returns an empty result.
-// Will be implemented with Lagrangian Multiplier relaxation for MMKP.
+struct SolutionResult {
+    double bestValue = 0.0;
+    std::vector<int> selectedItem;
+    std::vector<double> lambda;
+};
+
 SolutionResult solve(const Instance& instance);
+
+void setSolverDebug(bool enabled);
 
 #endif // SOLUTION_H
