@@ -3,6 +3,7 @@
 #include <limits>
 #include <random>
 #include <iostream>
+#include <cmath>
 
 // Feasibility-Pursuing Lagrangian Search (FPLS) for the Multiple-choice
 // Multidimensional Knapsack Problem (MMKP).
@@ -22,7 +23,7 @@
 // lambda (Theorem 2 monotonicity: raising lambda_m weakly shrinks the
 // Lagrangian capacity usage of resource m).
 
-const double deltaDefault = 10;
+const double deltaDefault = 1000;
 
 static bool DEBUG_VERBOSE = false;
 
@@ -157,4 +158,87 @@ FPLSResult solveFPLS(const Instance& instance, int N, int R, double c, unsigned 
     }
 
     return overall;
+}
+
+
+/**
+ * Check the solution
+ */
+bool verifySolution(const Instance& instance, const FPLSResult& result, bool verbose) {
+    bool ok = true;
+
+    // 1. Check exactly one selection per class.
+    if (static_cast<int>(result.selectedItem.size()) != instance.N) {
+        if (verbose) {
+            std::cout << "[verify] FAIL: selectedItem.size()=" << result.selectedItem.size()
+                      << " but instance.N=" << instance.N << std::endl;
+        }
+        return false; // structurally invalid, no point checking further
+    }
+
+    for (int i = 0; i < instance.N; ++i) {
+        int j = result.selectedItem[i];
+        int classSize = static_cast<int>(instance.classes[i].items.size());
+        if (j < 0 || j >= classSize) {
+            ok = false;
+            if (verbose) {
+                std::cout << "[verify] FAIL: class " << i << " selected index " << j
+                          << " out of range [0, " << classSize << ")" << std::endl;
+            }
+        }
+    }
+    if (!ok) return false; // can't safely recompute usage with invalid indices
+
+    // 2. Recompute usage and value directly from the raw instance data
+    //    (independent of whatever fpls.cpp internally tracked).
+    std::vector<double> recomputedUsage(instance.M, 0.0);
+    double recomputedValue = 0.0;
+
+    for (int i = 0; i < instance.N; ++i) {
+        int j = result.selectedItem[i];
+        const Item& item = instance.classes[i].items[j];
+        recomputedValue += item.value;
+        for (int m = 0; m < instance.M; ++m) {
+            recomputedUsage[m] += item.weight[m];
+        }
+    }
+
+    // 3. Check capacity constraints (M-dimensional knapsack feasibility).
+    for (int m = 0; m < instance.M; ++m) {
+        if (recomputedUsage[m] > static_cast<double>(instance.capacity[m])) {
+            ok = false;
+            if (verbose) {
+                std::cout << "[verify] FAIL: resource " << m << " usage="
+                          << recomputedUsage[m] << " > capacity="
+                          << instance.capacity[m] << std::endl;
+            }
+        }
+    }
+
+    // 4. Check that the recomputed value matches the value reported by solveFPLS.
+    const double EPS = 1e-6;
+    if (std::abs(recomputedValue - result.bestValue) > EPS) {
+        ok = false;
+        if (verbose) {
+            std::cout << "[verify] FAIL: recomputed value=" << recomputedValue
+                       << " but result.bestValue=" << result.bestValue << std::endl;
+        }
+    }
+
+    if (verbose) {
+        if (ok) {
+            std::cout << "[verify] PASS: N=" << instance.N << " classes, "
+                      << instance.M << " resources, value=" << recomputedValue
+                      << " (matches bestValue)" << std::endl;
+        }
+        std::cout << "[verify] usage/capacity breakdown:" << std::endl;
+        for (int m = 0; m < instance.M; ++m) {
+            std::cout << "    resource " << m << ": usage=" << recomputedUsage[m]
+                       << " / capacity=" << instance.capacity[m]
+                       << (recomputedUsage[m] > instance.capacity[m] ? "  <-- VIOLATED" : "")
+                       << std::endl;
+        }
+    }
+
+    return ok;
 }

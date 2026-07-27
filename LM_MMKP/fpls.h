@@ -23,4 +23,11 @@ FPLSResult solveFPLS(const Instance& instance, int N = 30000, int R = 1000,
 
 void setFPLSDebug(bool enabled);
 
+// Independently re-verify a FPLS solution against the raw instance data.
+// Checks: exactly one item chosen per class (selectedItem.size()==N, valid
+// indices), recomputed resource usage <= capacity for every dimension, and
+// recomputed total value matches result.bestValue. Prints a report and
+// returns true only if every check passes.
+bool verifySolution(const Instance& instance, const FPLSResult& result, bool verbose = true);
+
 #endif // FPLS_H
