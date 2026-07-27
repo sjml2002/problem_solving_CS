@@ -26,7 +26,7 @@ static const std::string RESULTS_CSV = RESULTS_DIR + "LM_MMKP_fpls.csv";
 
 // FPLS hyperparameters (see Yoon, Kim, Moon 2012, Table 4 for reference values).
 static const int FPLS_N = 30000;      // iterations per run
-static const int FPLS_R = 1000;       // independent randomized runs (best-of-R)
+static const int FPLS_R = 10;       // independent randomized runs (best-of-R)
 static const double FPLS_C = 10.0;    // step-size offset
 static const unsigned FPLS_SEED = 1u;
 
@@ -333,6 +333,13 @@ int main(int argc, char** argv) {
         }
 
         FPLSResult result = solveFPLS(instance, N, R, c, seed);
+        bool valid = verifySolution(instance, result, /*verbose=*/true);
+        if (!valid) {
+            std::cerr << "[main_fpls] WARNING: solution for " << fileName
+                    << " failed independent verification!" << std::endl;
+            ++failCount;
+            continue;
+        }
         ++successCount;
 
         auto it = solutionMap.find(fileName);
