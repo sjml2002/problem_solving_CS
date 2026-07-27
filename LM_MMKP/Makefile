@@ -4,7 +4,7 @@ CXXFLAGS := -std=c++17 -Wall -O2
 OBJ_DIR := obj
 COMMON_OBJS := $(OBJ_DIR)/dataIO.o
 
-.PHONY: all original fpls dp clean
+.PHONY: all original fpls dp dp_fpls clean
 
 all: original fpls
 
@@ -26,6 +26,12 @@ dp: mmkp_dp
 mmkp_dp: $(COMMON_OBJS) $(OBJ_DIR)/main.o $(OBJ_DIR)/solution_dp.o
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
+# make dp_fpls -> dp_fpls.cpp (DP-on-one-resource + FPLS hybrid)
+dp_fpls: mmkp_fpls_dp
+
+mmkp_fpls_dp: $(COMMON_OBJS) $(OBJ_DIR)/main_dp_fpls.o $(OBJ_DIR)/dp_fpls.o
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
 $(OBJ_DIR)/%.o: %.cpp | $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
@@ -33,4 +39,4 @@ $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)
 
 clean:
-	rm -rf $(OBJ_DIR) mmkp_original mmkp_fpls mmkp_dp
+	rm -rf $(OBJ_DIR) mmkp_original mmkp_fpls mmkp_dp mmkp_fpls_dp
