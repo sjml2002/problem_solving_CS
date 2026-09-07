@@ -7,6 +7,7 @@ CXXFLAGS := -std=c++11 -O2 -Wall -Wextra
 TARGET_ORIGINAL := fpls_original
 TARGET_DP       := fpls_dp
 TARGET_CHECK    := fpls_check
+TARGET_DP2		:= fpls_dp_m2
 
 
 # 공통 소스 (입출력)
@@ -20,15 +21,18 @@ OBJS_ORIGINAL := original_FPLS.o main.o
 # DP+FPLS
 OBJS_DP := original_FPLS.o dp_FPLS.o main_dp.o verify_solution.o
 
+# DP_m2+FPLS
+OBJS_DP_M2 := original_FPLS.o dp_FPLS.o main_dp_m2.o verify_solution.o
+
 
 # checkOptimal
 OBJS_CHECK := original_FPLS.o dp_FPLS.o verify_solution.o main_checkOptimal.o
 
 
-.PHONY: all clean original dp check
+.PHONY: all clean original dp dpm2 check
 
 
-all: original dp check
+all: original dp check dpm2
 
 
 # ---------- original FPLS 빌드 ----------
@@ -46,6 +50,13 @@ dp: $(TARGET_DP)
 $(TARGET_DP): $(OBJS_COMMON) $(OBJS_DP)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
+
+# ---------- DP_M2+FPLS 빌드 ----------
+dpm2: $(TARGET_DP2)
+
+
+$(TARGET_DP2): $(OBJS_COMMON) $(OBJS_DP_M2)
+	$(CXX) $(CXXFLAGS) -o $@ $^
 
 # ---------- checkOptimal 빌드 ----------
 check: $(TARGET_CHECK)
@@ -66,9 +77,10 @@ original_FPLS.o:      original_FPLS.cpp      original_FPLS.h       dataIO.h
 dp_FPLS.o:            dp_FPLS.cpp            dp_FPLS.h              original_FPLS.h dataIO.h
 main.o:               main.cpp               original_FPLS.h        dataIO.h
 main_dp.o:            main_dp.cpp            dp_FPLS.h              original_FPLS.h dataIO.h
+main_dp_m2.o:         main_dp_m2.cpp         dp_FPLS.h              original_FPLS.h dataIO.h
 verify_solution.o:    verify_solution.cpp    verify_solution.h
 main_checkOptimal.o:  main_checkOptimal.cpp  dp_FPLS.h              original_FPLS.h dataIO.h
 
 
 clean:
-	rm -f *.o $(TARGET_ORIGINAL) $(TARGET_DP) $(TARGET_CHECK)
+	rm -f *.o $(TARGET_ORIGINAL) $(TARGET_DP) $(TARGET_CHECK) $(TARGET_DP2)

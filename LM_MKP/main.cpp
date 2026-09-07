@@ -82,29 +82,105 @@ int main()
 {
     std::string fpath = "./MKP_instances/";
 
-    /* original FPLS */
-    // mkcbres 파일 읽기
     MKCBResults mkcb = read_mkcbres(fpath + "mkcbres.txt");
     if (mkcb.rows.empty()) {
         std::cerr << "[ERROR] No mkcbres rows loaded. Exiting." << std::endl;
         return 1;
     }
 
-    std::vector<FPLSRunResult> allRuns;
-    allRuns.reserve(9 * 30 * g_numRuns);
+    struct InputFile {
+        std::string filename;
+        std::string prefixId;
+    };
 
-    // Chu-Beasley 순서에 맞춰 prefixId 를 지정한다.
-    process_file_with_original_fpls(fpath + "mknapcb1.txt", "5.100", mkcb, allRuns);
-    process_file_with_original_fpls(fpath + "mknapcb2.txt", "5.250", mkcb, allRuns);
-    process_file_with_original_fpls(fpath + "mknapcb3.txt", "5.500", mkcb, allRuns);
-    process_file_with_original_fpls(fpath + "mknapcb4.txt", "10.100", mkcb, allRuns);
-    process_file_with_original_fpls(fpath + "mknapcb5.txt",  "10.250", mkcb, allRuns);
-    process_file_with_original_fpls(fpath + "mknapcb6.txt",  "10.500", mkcb, allRuns);
-    process_file_with_original_fpls(fpath + "mknapcb7.txt",  "30.100", mkcb, allRuns);
-    process_file_with_original_fpls(fpath + "mknapcb8.txt",  "30.250", mkcb, allRuns);
-    process_file_with_original_fpls(fpath + "mknapcb9.txt",  "30.500", mkcb, allRuns);
+        const std::vector<InputFile> inputFiles = {
+            // // 기존 Chu-Beasley benchmark
+            // {"mknapcb1.txt", "5.100"},
+            // {"mknapcb2.txt", "5.250"},
+            // {"mknapcb3.txt", "5.500"},
+            // {"mknapcb4.txt", "10.100"},
+            // {"mknapcb5.txt", "10.250"},
+            // {"mknapcb6.txt", "10.500"},
+            // {"mknapcb7.txt", "30.100"},
+            // {"mknapcb8.txt", "30.250"},
+            // {"mknapcb9.txt", "30.500"},
 
-    write_results_csv("./results/fpls_original_results.csv", allRuns);
+            // // m=3 생성 인스턴스
+            // {"mknapcb1_m3.txt", "5.100"},
+
+            // m=2 생성 인스턴스
+            {"mknapcb10_m=2_a=0.25.txt", "5.100"},
+            {"mknapcb10_m=2_a=0.5.txt",  "5.100"},
+            {"mknapcb10_m=2_a=0.75.txt", "5.100"}
+        };
+
+    for (const auto &input : inputFiles) {
+        std::vector<FPLSRunResult> allRuns;
+        allRuns.reserve(20 * g_numRuns);
+
+        process_file_with_original_fpls(
+            fpath + input.filename,
+            input.prefixId,
+            mkcb,
+            allRuns
+        );
+
+        // 확장자 .txt 제거
+        std::string instanceName = input.filename;
+        const std::string extension = ".txt";
+
+        if (instanceName.size() >= extension.size() &&
+            instanceName.compare(instanceName.size() - extension.size(),
+                                 extension.size(), extension) == 0) {
+            instanceName.erase(instanceName.size() - extension.size());
+        }
+
+        // 예:
+        // ./results/mkp_original_mknapcb10_m=2_a=0.25.csv
+        std::string outputPath =
+            "./results/mkp_original_" + instanceName + ".csv";
+
+        write_results_csv(outputPath, allRuns);
+
+        std::cerr << "[INFO] Written: " << outputPath << std::endl;
+    }
 
     return 0;
 }
+
+
+// int main()
+// {
+//     std::string fpath = "./MKP_instances/";
+
+//     /* original FPLS */
+//     // mkcbres 파일 읽기
+//     MKCBResults mkcb = read_mkcbres(fpath + "mkcbres.txt");
+//     if (mkcb.rows.empty()) {
+//         std::cerr << "[ERROR] No mkcbres rows loaded. Exiting." << std::endl;
+//         return 1;
+//     }
+
+//     std::vector<FPLSRunResult> allRuns;
+//     allRuns.reserve(9 * 30 * g_numRuns);
+
+//     // Chu-Beasley 순서에 맞춰 prefixId 를 지정한다.
+//     // process_file_with_original_fpls(fpath + "mknapcb1.txt", "5.100", mkcb, allRuns);
+//     // process_file_with_original_fpls(fpath + "mknapcb2.txt", "5.250", mkcb, allRuns);
+//     // process_file_with_original_fpls(fpath + "mknapcb3.txt", "5.500", mkcb, allRuns);
+//     // process_file_with_original_fpls(fpath + "mknapcb4.txt", "10.100", mkcb, allRuns);
+//     // process_file_with_original_fpls(fpath + "mknapcb5.txt",  "10.250", mkcb, allRuns);
+//     // process_file_with_original_fpls(fpath + "mknapcb6.txt",  "10.500", mkcb, allRuns);
+//     // process_file_with_original_fpls(fpath + "mknapcb7.txt",  "30.100", mkcb, allRuns);
+//     // process_file_with_original_fpls(fpath + "mknapcb8.txt",  "30.250", mkcb, allRuns);
+//     // process_file_with_original_fpls(fpath + "mknapcb9.txt",  "30.500", mkcb, allRuns);
+
+//     // process_file_with_original_fpls(fpath + "mknapcb1_m3.txt", "5.100", mkcb, allRuns);
+//     process_file_with_original_fpls(fpath + "mknapcb10_m=2_a=0.25.txt", "5.100", mkcb, allRuns);
+//     process_file_with_original_fpls(fpath + "mknapcb10_m=2_a=0.5.txt", "5.100", mkcb, allRuns);
+//     process_file_with_original_fpls(fpath + "mknapcb10_m=2_a=0.75.txt", "5.100", mkcb, allRuns);
+
+//     write_results_csv("./results/fpls_original_results.csv", allRuns);
+
+//     return 0;
+// }
